@@ -4,7 +4,7 @@
 </div>
 
 > [!NOTE]
-> **Thaw** is a fork of [Ice](https://github.com/jordanbaird/Ice) by Jordan Baird. 
+> **Thaw** is a fork of [Ice](https://github.com/jordanbaird/Ice) by Jordan Baird.
 > As the original project appears to be inactive, Thaw aims to keep the project alive fixing bugs, ensuring compatibility with the latest macOS releases, and eventually implementing the remaining roadmap features.
 
 Thaw is a powerful menu bar management tool. While its primary function is hiding and showing menu bar items, it aims to cover a wide variety of additional features to make it one of the most versatile menu bar tools available.
@@ -15,6 +15,7 @@ Thaw is a powerful menu bar management tool. While its primary function is hidin
 ![Platform](https://img.shields.io/badge/platform-macOS-blue?style=flat-square)
 ![Requirements](https://img.shields.io/badge/requirements-macOS%2014%2B-fa4e49?style=flat-square)
 [![Sponsor](https://img.shields.io/badge/Sponsor%20%E2%9D%A4%EF%B8%8F-8A2BE2?style=flat-square)](https://github.com/sponsors/stonerl)
+[![Discord](https://img.shields.io/badge/Discord-7289DA?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/5cnKkKbMFd)
 [![License](https://img.shields.io/github/license/stonerl/Thaw?style=flat-square)](LICENSE)
 
 > [!NOTE]
