@@ -187,6 +187,10 @@ extension Defaults {
         case hasMigrated0_11_13
         case hasMigrated0_11_13_1
 
+        // MARK: First Launch
+
+        case hasCompletedFirstLaunch
+
         // MARK: Deprecated (Appearance Settings)
 
         case menuBarHasBorder = "MenuBarHasBorder"

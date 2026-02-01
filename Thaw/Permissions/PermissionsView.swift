@@ -12,6 +12,13 @@ struct PermissionsView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var manager: AppPermissions
 
+    @State private var hasIceSettings = false
+    @State private var showImportIceSettings = false
+    @State private var isImportingIceSettings = false
+    @State private var iceImportResult: (success: Bool, settingsImported: Int)?
+
+    private let iceImporter = IceSettingsImporter()
+
     private var continueButtonText: LocalizedStringKey {
         if case .hasRequired = manager.permissionsState {
             "Continue in Limited Mode"
@@ -44,6 +51,11 @@ struct PermissionsView: View {
         .padding(.horizontal)
         .frame(width: 550)
         .fixedSize()
+        .onAppear {
+            checkForIceSettings()
+            let shouldShowImporter = hasIceSettings && !Defaults.bool(forKey: .hasCompletedFirstLaunch)
+            showImportIceSettings = shouldShowImporter
+        }
     }
 
     private var headerView: some View {
@@ -76,6 +88,10 @@ struct PermissionsView: View {
 
     private var permissionsStack: some View {
         VStack {
+            if showImportIceSettings {
+                iceImportBox
+            }
+
             explanationBox
             ForEach(manager.allPermissions) { permission in
                 permissionBox(permission)
@@ -106,10 +122,12 @@ struct PermissionsView: View {
 
             guard manager.permissionsState != .missing else {
                 appState.performSetup(hasPermissions: false)
+                Defaults.set(true, forKey: .hasCompletedFirstLaunch)
                 return
             }
 
             appState.performSetup(hasPermissions: true)
+            Defaults.set(true, forKey: .hasCompletedFirstLaunch)
 
             Task {
                 appState.activate(withPolicy: .regular)
@@ -171,6 +189,73 @@ struct PermissionsView: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var iceImportBox: some View {
+        IceSection {
+            VStack(spacing: 12) {
+                Text("Import Settings")
+                    .font(.title.weight(.medium))
+                    .underline()
+
+                VStack(spacing: 2) {
+                    Text("We found settings from Ice (the original app).")
+                        .font(.title3)
+                        .bold()
+
+                    if let result = iceImportResult {
+                        if result.success {
+                            Text("Successfully imported \(result.settingsImported) settings!")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                                .bold()
+                        } else {
+                            Text("Import failed. You can configure settings manually.")
+                                .font(.title3)
+                                .foregroundStyle(.red)
+                                .bold()
+                        }
+                    } else {
+                        Text("Would you like to import your existing configuration?")
+                            .font(.title3)
+                            .fontWeight(.medium)
+                    }
+                }
+
+                if iceImportResult?.success == true {
+                    Button("Imported") {}
+                        .foregroundStyle(.green)
+                        .disabled(true)
+                } else {
+                    Button("Import Settings") {
+                        importIceSettings()
+                    }
+                    .disabled(isImportingIceSettings)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func checkForIceSettings() {
+        hasIceSettings = iceImporter.hasIceSettings()
+    }
+
+    private func importIceSettings() {
+        isImportingIceSettings = true
+
+        Task { @MainActor in
+            let result = iceImporter.importIceSettings()
+            iceImportResult = result
+            isImportingIceSettings = false
+
+            if result.success {
+                // Mark first launch as completed after successful import
+                Defaults.set(true, forKey: .hasCompletedFirstLaunch)
+                showImportIceSettings = true
+            }
         }
     }
 }

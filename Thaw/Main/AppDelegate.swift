@@ -40,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         #endif
 
+        // Check if this is the first launch
+        let isFirstLaunch = !Defaults.bool(forKey: .hasCompletedFirstLaunch)
+
         // Depending on the permissions state, either perform setup
         // or prompt to grant permissions.
         switch appState.permissions.permissionsState {
@@ -52,6 +55,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .missing:
             appState.permissions.logger.debug("Failed required permissions checks")
             appState.performSetup(hasPermissions: false)
+        }
+
+        // Show permissions window on first launch or if missing required permissions
+        if isFirstLaunch || appState.permissions.permissionsState == .missing {
+            appState.openWindow(.permissions)
         }
     }
 
