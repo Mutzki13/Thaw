@@ -21,6 +21,19 @@ struct SettingsWindow: Scene {
                 .onWindowChange { window in
                     model.observeWindowToolbar(window)
                 }
+                .sheet(isPresented: $appState.isUpdateConsentPresented) {
+                    UpdateConsentSheet { autoDownload in
+                        appState.isUpdateConsentPresented = false
+                        Defaults.set(true, forKey: .hasSeenUpdateConsent)
+                        appState.updatesManager.automaticallyChecksForUpdates = true
+                        appState.updatesManager.automaticallyDownloadsUpdates = autoDownload
+                        appState.startUpdaterIfNeeded()
+                    } onDisable: {
+                        appState.isUpdateConsentPresented = false
+                        Defaults.set(true, forKey: .hasSeenUpdateConsent)
+                        appState.updatesManager.automaticallyChecksForUpdates = false
+                    }
+                }
                 .onAppear {
                     Task { @MainActor in
                         appState.imageCache.performCacheCleanup()

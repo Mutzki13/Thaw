@@ -21,9 +21,15 @@ final class UpdatesManager: NSObject, ObservableObject {
     /// The shared app state.
     private(set) weak var appState: AppState?
 
+    /// Whether the user has already handled the permission prompt.
+    private var hasHandledPermission = Defaults.bool(forKey: .hasSeenUpdateConsent)
+
+    /// Tracks whether the updater has been started.
+    private var hasStartedUpdater = false
+
     /// The underlying updater controller.
     private(set) lazy var updaterController = SPUStandardUpdaterController(
-        startingUpdater: true,
+        startingUpdater: false,
         updaterDelegate: self,
         userDriverDelegate: self
     )
@@ -41,6 +47,7 @@ final class UpdatesManager: NSObject, ObservableObject {
         set {
             UserDefaults.standard.set(newValue, forKey: "AllowsBetaUpdates")
             Task {
+                guard hasStartedUpdater else { return }
                 updater.checkForUpdatesInBackground()
             }
         }
@@ -54,6 +61,9 @@ final class UpdatesManager: NSObject, ObservableObject {
         set {
             objectWillChange.send()
             updater.automaticallyChecksForUpdates = newValue
+            if newValue {
+                Defaults.set(true, forKey: .hasSeenUpdateConsent)
+            }
         }
     }
 
@@ -65,6 +75,9 @@ final class UpdatesManager: NSObject, ObservableObject {
         set {
             objectWillChange.send()
             updater.automaticallyDownloadsUpdates = newValue
+            if newValue {
+                Defaults.set(true, forKey: .hasSeenUpdateConsent)
+            }
         }
     }
 
@@ -73,6 +86,15 @@ final class UpdatesManager: NSObject, ObservableObject {
         self.appState = appState
         _ = updaterController
         configureCancellables()
+    }
+
+    /// Starts the updater if it hasn't been started yet.
+    func startUpdaterIfNeeded() {
+        guard !hasStartedUpdater else {
+            return
+        }
+        hasStartedUpdater = true
+        updaterController.startUpdater()
     }
 
     /// Configures the internal observers for the manager.
@@ -94,6 +116,7 @@ final class UpdatesManager: NSObject, ObservableObject {
             guard let appState else {
                 return
             }
+            startUpdaterIfNeeded()
             // Activate the app in case an alert needs to be displayed.
             appState.activate(withPolicy: .regular)
             appState.openWindow(.settings)
@@ -105,6 +128,15 @@ final class UpdatesManager: NSObject, ObservableObject {
 // MARK: UpdatesManager: SPUUpdaterDelegate
 
 extension UpdatesManager: @preconcurrency SPUUpdaterDelegate {
+    func updaterShouldPromptForPermissionToCheck(forUpdates _: SPUUpdater) -> Bool {
+        // We show our own blocking sheet; if consent already handled, skip Sparkle prompt.
+        if Defaults.bool(forKey: .hasSeenUpdateConsent) {
+            return false
+        }
+        // If somehow Sparkle asks before our sheet, block and let our UI drive the choice.
+        return false
+    }
+
     /// Determines which update channels are allowed.
     func allowedChannels(for _: SPUUpdater) -> Set<String> {
         if UserDefaults.standard.bool(forKey: "AllowsBetaUpdates") {

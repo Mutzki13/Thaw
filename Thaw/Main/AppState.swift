@@ -21,6 +21,9 @@ final class AppState: ObservableObject {
     /// A Boolean value that indicates whether the user is dragging a menu bar item.
     @Published private(set) var isDraggingMenuBarItem = false
 
+    /// Tracks presentation of the update consent sheet.
+    @Published var isUpdateConsentPresented = false
+
     /// Model for the app's settings.
     let settings = AppSettings()
 
@@ -91,6 +94,11 @@ final class AppState: ObservableObject {
 
         // Start memory monitoring
         startMemoryMonitoring()
+    }
+
+    /// Allows explicit starting of the updater from UI flows.
+    func startUpdaterIfNeeded() {
+        updatesManager.startUpdaterIfNeeded()
     }
 
     /// Starts periodic memory monitoring to track all memory usage
@@ -234,6 +242,12 @@ final class AppState: ObservableObject {
                 // Update openWindows tracking based on actual window visibility
                 if isPresented {
                     self.openWindows.insert(.settings)
+                    // Start Sparkle consent flow the first time settings is shown.
+                    if !Defaults.bool(forKey: .hasSeenUpdateConsent) {
+                        self.isUpdateConsentPresented = true
+                    } else {
+                        self.updatesManager.startUpdaterIfNeeded()
+                    }
                 } else {
                     self.openWindows.remove(.settings)
                 }

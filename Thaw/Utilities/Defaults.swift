@@ -191,6 +191,10 @@ extension Defaults {
 
         case hasCompletedFirstLaunch
 
+        // MARK: Updates Consent
+
+        case hasSeenUpdateConsent
+
         // MARK: Deprecated (Appearance Settings)
 
         case menuBarHasBorder = "MenuBarHasBorder"
