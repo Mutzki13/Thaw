@@ -1524,13 +1524,29 @@ extension MenuBarItemManager {
             items.removeSubrange(...index)
         }
 
-        let maxX: CGFloat = {
+        var maxX: CGFloat = {
             var maxX = applicationMenuFrame.maxX
             if let frameOfNotch = screen.frameOfNotch {
                 maxX = max(maxX, frameOfNotch.maxX + 30)
             }
             return maxX + item.bounds.width
         }()
+
+        // Clamp the computed width so we never assume the application menu
+        // extends past the first on-screen item on this display (important for
+        // secondary/notched displays where AX may overestimate).
+        let displayBounds = CGDisplayBounds(screen.displayID)
+        if let leftmostItemX = items
+            .filter(\.isOnScreen)
+            .filter({ $0.bounds.intersects(displayBounds) })
+            .map(\.bounds.minX)
+            .min()
+        {
+            let clampedMaxX = leftmostItemX - item.bounds.width - 6
+            if clampedMaxX.isFinite {
+                maxX = min(maxX, clampedMaxX)
+            }
+        }
 
         // Remove items until we have enough room to show this item.
         items.trimPrefix { item in
