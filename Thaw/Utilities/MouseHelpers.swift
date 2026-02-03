@@ -7,6 +7,7 @@
 //  Licensed under the GNU GPLv3
 
 import CoreGraphics
+import Foundation
 import OSLog
 
 // MARK: - Logger Extension
@@ -20,6 +21,7 @@ private extension Logger {
 
 /// A namespace for mouse helper operations.
 enum MouseHelpers {
+    private static let cursorLock = DispatchQueue(label: "MouseHelpers.cursorLock")
     private static var cursorHideCount = 0
     /// Returns the location of the mouse cursor in the coordinate
     /// space used by `AppKit`, with the origin at the bottom left
@@ -37,28 +39,46 @@ enum MouseHelpers {
 
     /// Hides the mouse cursor and increments the hide cursor count.
     static func hideCursor() {
-        cursorHideCount += 1
-        if cursorHideCount == 1 {
-            let result = CGDisplayHideCursor(CGMainDisplayID())
-            if result != .success {
-                Logger.mouseHelpers.error("CGDisplayHideCursor failed with error \(result.logString, privacy: .public)")
-                cursorHideCount = 0 // Reset on failure
-            }
+        var shouldHide = false
+        cursorLock.sync {
+            cursorHideCount += 1
+            shouldHide = cursorHideCount == 1
+        }
+
+        guard shouldHide else { return }
+
+        let result = CGDisplayHideCursor(CGMainDisplayID())
+        if result != .success {
+            Logger.mouseHelpers.error("CGDisplayHideCursor failed with error \(result.logString, privacy: .public)")
+            cursorLock.sync { cursorHideCount = 0 } // Reset on failure
         }
     }
 
     /// Decrements the hide cursor count and shows the mouse cursor
     /// if the count is `0`.
     static func showCursor() {
-        if cursorHideCount > 0 {
-            cursorHideCount -= 1
-            if cursorHideCount == 0 {
-                let result = CGDisplayShowCursor(CGMainDisplayID())
-                if result != .success {
-                    Logger.mouseHelpers.error("CGDisplayShowCursor failed with error \(result.logString, privacy: .public)")
-                    // Don't reset count on failure to prevent imbalance
-                }
+        var shouldShow = false
+        var wasAlreadyZero = false
+        cursorLock.sync {
+            if cursorHideCount > 0 {
+                cursorHideCount -= 1
+                shouldShow = cursorHideCount == 0
+            } else {
+                wasAlreadyZero = true
             }
+        }
+
+        if wasAlreadyZero {
+            Logger.mouseHelpers.debug("showCursor called with count already zero")
+            return
+        }
+
+        guard shouldShow else { return }
+
+        let result = CGDisplayShowCursor(CGMainDisplayID())
+        if result != .success {
+            Logger.mouseHelpers.error("CGDisplayShowCursor failed with error \(result.logString, privacy: .public)")
+            // Don't reset count on failure to prevent imbalance
         }
     }
 
