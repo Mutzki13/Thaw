@@ -60,6 +60,7 @@ final class MenuBarItemManager: ObservableObject {
 
     /// A timer for rehiding temporarily shown menu bar items.
     private var rehideTimer: Timer?
+    private var rehideCancellable: AnyCancellable?
 
     /// Timestamp of the most recent menu bar item move operation.
     private var lastMoveOperationTimestamp: ContinuousClock.Instant?
@@ -1477,6 +1478,7 @@ extension MenuBarItemManager {
         let interval = interval ?? appState.settings.advanced.tempShowInterval
         logger.debug("Running rehide timer for interval: \(interval, format: .fixed, privacy: .public)")
         rehideTimer?.invalidate()
+        rehideCancellable?.cancel()
         rehideTimer = .scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] timer in
             guard let self else {
                 timer.invalidate()
@@ -1487,6 +1489,13 @@ extension MenuBarItemManager {
                 await self.rehideTemporarilyShownItems()
             }
         }
+        // Also rehide when frontmost app changes (smart-ish).
+        rehideCancellable = NSWorkspace.shared.publisher(for: \.frontmostApplication)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                Task { await self.rehideTemporarilyShownItems() }
+            }
     }
 
     /// Temporarily shows the given item.
