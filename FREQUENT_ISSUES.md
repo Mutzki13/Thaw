@@ -1,7 +1,7 @@
 # Frequent Issues <!-- omit in toc -->
 
-- [Items are moved to the always-hidden section](#items-are-moved-to-the-always-hidden-section)
-- [~Ice removed an item~](#ice-removed-an-item)
+- [~Items are moved to the always-hidden section~](#items-are-moved-to-the-always-hidden-section)
+- [Ice removed an item](#ice-removed-an-item)
 - [Ice does not remember the order of items](#ice-does-not-remember-the-order-of-items)
 - [How do I solve the `Ice cannot arrange menu bar items in automatically hidden menu bars` error?](#how-do-i-solve-the-ice-cannot-arrange-menu-bar-items-in-automatically-hidden-menu-bars-error)
 
