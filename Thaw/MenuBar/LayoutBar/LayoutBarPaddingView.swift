@@ -186,6 +186,9 @@ final class LayoutBarPaddingView: NSView {
         }
 
         // Refresh images so icons show immediately in the UI without clearing to avoid temporary gaps.
+        await MainActor.run {
+            appState.imageCache.performCacheCleanup()
+        }
         await appState.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
     }
 }

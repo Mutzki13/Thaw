@@ -2069,6 +2069,7 @@ extension MenuBarItemManager {
             for section in MenuBarSection.Name.allCases {
                 appState.imageCache.clearImages(for: section)
             }
+            appState.imageCache.performCacheCleanup()
         }
         await appState.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
 
