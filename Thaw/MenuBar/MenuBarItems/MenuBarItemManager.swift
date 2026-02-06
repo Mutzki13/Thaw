@@ -2027,10 +2027,32 @@ extension MenuBarItemManager {
 
         guard let controlItems = ControlItemPair(items: &items) else {
             logger.error("Layout reset aborted: missing hidden section control item")
+
+            // Attempt a forced restore by re-enabling the always hidden section flag and
+            // nudging macOS to recreate control items, then retry once.
+            if appState.settings.advanced.enableAlwaysHiddenSection {
+                appState.settings.advanced.enableAlwaysHiddenSection = false
+                try? await Task.sleep(for: .milliseconds(50))
+                appState.settings.advanced.enableAlwaysHiddenSection = true
+                try? await Task.sleep(for: .milliseconds(150))
+
+                items = await MenuBarItem.getMenuBarItems(option: .activeSpace)
+                if let retryControlItems = ControlItemPair(items: &items) {
+                    logger.info("Recovered hidden section control item after re-enabling always-hidden section")
+                    return try await resetLayoutWithControlItems(controlItems: retryControlItems, items: items)
+                }
+            }
+
             throw LayoutResetError.missingControlItems
         }
 
         await enforceControlItemOrder(controlItems: controlItems)
+
+        return try await resetLayoutWithControlItems(controlItems: controlItems, items: items)
+    }
+
+    private func resetLayoutWithControlItems(controlItems: ControlItemPair, items: [MenuBarItem]) async throws -> Int {
+        let items = items
 
         func movePass(_ items: [MenuBarItem], anchor: MenuBarItem) async -> Int {
             var failed = 0
@@ -2065,18 +2087,18 @@ extension MenuBarItemManager {
         itemCache = ItemCache(displayID: nil)
         await cacheItemsRegardless(skipRecentMoveCheck: true)
 
-        await MainActor.run {
-            for section in MenuBarSection.Name.allCases {
-                appState.imageCache.clearImages(for: section)
+        if let appState {
+            await MainActor.run {
+                for section in MenuBarSection.Name.allCases {
+                    appState.imageCache.clearImages(for: section)
+                }
+                appState.imageCache.performCacheCleanup()
             }
-            appState.imageCache.performCacheCleanup()
-        }
-        await appState.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
+            await appState.imageCache.updateCacheWithoutChecks(sections: MenuBarSection.Name.allCases)
 
-        // Rebuild layout containers from the refreshed cache to avoid stale arranged views in settings.
-        // Notify UI to refresh layout bars; concrete rebuilding is handled in UI observers.
-        await MainActor.run {
-            appState.objectWillChange.send()
+            await MainActor.run {
+                appState.objectWillChange.send()
+            }
         }
 
         return failedMoves
