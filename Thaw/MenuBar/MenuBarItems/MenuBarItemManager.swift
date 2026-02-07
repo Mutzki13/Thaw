@@ -654,15 +654,23 @@ extension MenuBarItemManager {
         await task.value
     }
 
-    /// Returns the current bounds for the given item.
+    /// Returns the current bounds for the given item, with a refresh fallback if the window is missing.
     private nonisolated func getCurrentBounds(for item: MenuBarItem) async throws -> CGRect {
-        let task = Task.detached(priority: .userInitiated) {
-            guard let bounds = Bridging.getWindowBounds(for: item.windowID) else {
-                throw EventError.missingItemBounds(item)
-            }
+        // First attempt: current windowID.
+        if let bounds = Bridging.getWindowBounds(for: item.windowID) {
             return bounds
         }
-        return try await task.value
+
+        // Fallback: refresh on-screen items and pick the matching tag (prefer same windowID, then non-clone).
+        let refreshed = await MenuBarItem.getMenuBarItems(option: .onScreen)
+        if let refreshedItem = refreshed.first(where: { $0.windowID == item.windowID && $0.tag == item.tag }) ??
+            refreshed.first(where: { $0.tag == item.tag && !$0.isSystemClone }) ??
+            refreshed.first(where: { $0.tag == item.tag })
+        {
+            return refreshedItem.bounds
+        }
+
+        throw EventError.missingItemBounds(item)
     }
 
     /// Returns the current mouse location.
@@ -1087,25 +1095,38 @@ extension MenuBarItemManager {
             let padding: CGFloat = 6
             let displayBounds = CGDisplayBounds(screen.displayID)
 
-            var safeMaxX: CGFloat?
-
-            if let menuFrame = screen.getApplicationMenuFrame() {
-                safeMaxX = menuFrame.maxX
-            }
-
-            if safeMaxX == nil {
-                let items = await MenuBarItem.getMenuBarItems(option: .onScreen)
-                if let minX = items
-                    .filter({ $0.bounds.intersects(displayBounds) })
-                    .map(\.bounds.minX)
-                    .min()
-                {
-                    safeMaxX = max(displayBounds.minX + 60, minX - padding)
+            var clampSource = "none"
+            if #available(macOS 16.0, *) {
+                var safeMaxX: CGFloat?
+                if let menuFrame = screen.getApplicationMenuFrame() {
+                    safeMaxX = menuFrame.maxX
+                    clampSource = "axMenuFrame"
                 }
+                if safeMaxX == nil {
+                    let items = await MenuBarItem.getMenuBarItems(option: .onScreen)
+                    if let minX = items
+                        .filter({ $0.bounds.intersects(displayBounds) })
+                        .map(\.bounds.minX)
+                        .min()
+                    {
+                        safeMaxX = max(displayBounds.minX + 60, minX - padding)
+                        clampSource = "leftmostItem"
+                    }
+                }
+                let fallback = displayBounds.minX + 80
+                start.x = max(start.x, (safeMaxX ?? fallback) + padding)
+            } else {
+                // macOS 14/15: avoid over-estimating the Apple menu region; clamp only within the target display band.
+                let guardMin = displayBounds.minX + 80
+                let guardMax = targetBounds.minX - 2
+                start.x = min(max(start.x, guardMin), guardMax)
+                clampSource = "guardBand"
             }
-
-            let fallback = displayBounds.minX + 80
-            start.x = max(start.x, (safeMaxX ?? fallback) + padding)
+            let targetDisplay = CGDisplayBounds(screen.displayID).contains(targetBounds.origin) ? screen.displayID : CGMainDisplayID()
+            let itemDisplay = CGDisplayBounds(screen.displayID).contains(itemBounds.origin) ? screen.displayID : CGMainDisplayID()
+            logger.debug(
+                "Move clamp source=\(clampSource, privacy: .public) startX=\(start.x, privacy: .public) targetMinX=\(targetBounds.minX, privacy: .public) itemMinX=\(itemBounds.minX, privacy: .public) targetTag=\(destination.targetItem.tag, privacy: .public) itemTag=\(item.tag, privacy: .public) clampDisplay=\(screen.displayID, privacy: .public) targetDisplay=\(targetDisplay, privacy: .public) itemDisplay=\(itemDisplay, privacy: .public)"
+            )
         }
         return (start, end)
     }
