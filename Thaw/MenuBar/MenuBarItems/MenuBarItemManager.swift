@@ -1080,9 +1080,32 @@ extension MenuBarItemManager {
             }
         }
 
-        if let frame = NSScreen.screenWithActiveMenuBar?.getApplicationMenuFrame() {
-            // Keep the initial press away from the Apple menu hit region.
-            start.x = max(start.x, frame.maxX + 6)
+        // Keep the initial press away from the Apple menu hit region. On macOS 14/15
+        // AX can fail to provide the application menu frame; fall back to the leftmost
+        // on-screen item to approximate a safe edge.
+        if let screen = NSScreen.screenWithActiveMenuBar {
+            let padding: CGFloat = 6
+            let displayBounds = CGDisplayBounds(screen.displayID)
+
+            var safeMaxX: CGFloat?
+
+            if let menuFrame = screen.getApplicationMenuFrame() {
+                safeMaxX = menuFrame.maxX
+            }
+
+            if safeMaxX == nil {
+                let items = await MenuBarItem.getMenuBarItems(option: .onScreen)
+                if let minX = items
+                    .filter({ $0.bounds.intersects(displayBounds) })
+                    .map(\.bounds.minX)
+                    .min()
+                {
+                    safeMaxX = max(displayBounds.minX + 60, minX - padding)
+                }
+            }
+
+            let fallback = displayBounds.minX + 80
+            start.x = max(start.x, (safeMaxX ?? fallback) + padding)
         }
         return (start, end)
     }
