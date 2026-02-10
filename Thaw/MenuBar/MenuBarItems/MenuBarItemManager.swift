@@ -1271,7 +1271,7 @@ extension MenuBarItemManager {
             // near the top edge, offsetting y by a few pixels is enough
             // to prevent all top-corner activations without affecting the
             // x range needed for item moves.
-            let cornerInset: CGFloat = 5
+            let cornerInset: CGFloat = 10
             start.y = max(start.y, displayBounds.minY + cornerInset)
             end.y = max(end.y, displayBounds.minY + cornerInset)
 

@@ -488,7 +488,7 @@ final class ControlItem {
     /// Calculates how many spacer items are needed to push hidden items off ultra-wide displays.
     private func requiredSpacerCount() -> Int {
         let maxScreenWidth = NSScreen.screens.map { $0.frame.width }.max() ?? 6000
-        guard maxScreenWidth > 5000 else { return 0 }
+        guard maxScreenWidth > 5120 else { return 0 }
 
         let desiredWidth = maxScreenWidth * 3
         let remaining = desiredWidth - Lengths.expanded
