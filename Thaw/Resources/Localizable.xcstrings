@@ -590,6 +590,12 @@
             "state" : "translated",
             "value" : "À propos"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關於"
+          }
         }
       }
     },
@@ -715,6 +721,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Avancé"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進階"
           }
         }
       }
@@ -2496,6 +2508,12 @@
             "state" : "translated",
             "value" : "Général"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一般"
+          }
         }
       }
     },
@@ -2838,6 +2856,12 @@
             "state" : "translated",
             "value" : "Raccourcis clavier"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速鍵"
+          }
         }
       }
     },
@@ -3103,6 +3127,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir avec la session"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登入時啟動"
           }
         }
       }
@@ -3693,6 +3723,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Disposition"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選單列佈局"
           }
         }
       }
