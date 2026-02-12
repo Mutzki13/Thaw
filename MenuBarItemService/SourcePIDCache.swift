@@ -25,6 +25,7 @@ import os
 /// in a dedicated XPC service, which we then call asynchronously from
 /// the main app.
 final class SourcePIDCache {
+    private static let diagLog = DiagLog(category: "SourcePIDCache")
     /// An object that contains a running application and provides an
     /// interface to access relevant information, such as its process
     /// identifier and extras menu bar.
@@ -97,7 +98,7 @@ final class SourcePIDCache {
                 guard let currentBounds = window.currentBounds() else {
                     // Failure here means the window probably doesn't
                     // exist anymore.
-                    Logger.default.debug("stableBounds: currentBounds() returned nil for windowID \(window.windowID) on attempt \(n) — window may no longer exist")
+                    SourcePIDCache.diagLog.debug("stableBounds: currentBounds() returned nil for windowID \(window.windowID) on attempt \(n) — window may no longer exist")
                     return nil
                 }
                 if currentBounds == cachedBounds {
@@ -108,7 +109,7 @@ final class SourcePIDCache {
                 Thread.sleep(forTimeInterval: TimeInterval(n) / 100)
             }
 
-            Logger.default.warning("stableBounds: bounds did not stabilize after 5 attempts for windowID \(window.windowID), last bounds=\(NSStringFromRect(cachedBounds))")
+            SourcePIDCache.diagLog.warning("stableBounds: bounds did not stabilize after 5 attempts for windowID \(window.windowID), last bounds=\(NSStringFromRect(cachedBounds))")
             return nil
         }
 
@@ -164,7 +165,7 @@ final class SourcePIDCache {
     /// Performs cleanup of the cache state.
     private func performCleanup() {
         let runningApps = NSWorkspace.shared.runningApplications
-        Logger.default.debug("Performing PID cache cleanup")
+        SourcePIDCache.diagLog.debug("Performing PID cache cleanup")
 
         let windowIDs = Bridging.getMenuBarWindowList(option: .itemsOnly)
         let currentAppPids = Set(runningApps.map(\.processIdentifier))
@@ -210,14 +211,14 @@ final class SourcePIDCache {
 
             // Log cleanup activity
             if !terminatedPids.isEmpty {
-                Logger.default.info("Cleaned up PID cache entries for terminated processes: \(terminatedPids)")
+                SourcePIDCache.diagLog.info("Cleaned up PID cache entries for terminated processes: \(terminatedPids)")
             }
         }
     }
 
     /// Starts the observers for the cache.
     func start() {
-        Logger.default.debug("Starting observers for source PID cache")
+        SourcePIDCache.diagLog.debug("Starting observers for source PID cache")
         _ = cancellable
     }
 
@@ -225,15 +226,15 @@ final class SourcePIDCache {
     /// updating the cache if needed.
     func pid(for window: WindowInfo) -> pid_t? {
         if let pid = state.withLock({ $0.pids[window.windowID] }) {
-            Logger.default.debug("SourcePIDCache.pid: cache hit for windowID \(window.windowID) -> PID \(pid)")
+            SourcePIDCache.diagLog.debug("SourcePIDCache.pid: cache hit for windowID \(window.windowID) -> PID \(pid)")
             return pid
         }
 
-        Logger.default.debug("SourcePIDCache.pid: cache miss for windowID \(window.windowID) title=\(window.title ?? "nil", privacy: .public), resolving via AX API")
+        SourcePIDCache.diagLog.debug("SourcePIDCache.pid: cache miss for windowID \(window.windowID) title=\(window.title ?? "nil"), resolving via AX API")
 
         let isTrusted = AXHelpers.isProcessTrusted()
         guard isTrusted else {
-            Logger.default.warning("SourcePIDCache.pid: AXHelpers.isProcessTrusted() returned false — accessibility permission missing in XPC service")
+            SourcePIDCache.diagLog.warning("SourcePIDCache.pid: AXHelpers.isProcessTrusted() returned false — accessibility permission missing in XPC service")
             return nil
         }
 
@@ -245,7 +246,7 @@ final class SourcePIDCache {
 
         for n in 1 ... 5 {
             guard let currentBounds = window.currentBounds() else {
-                Logger.default.debug("SourcePIDCache.pid: currentBounds() returned nil for windowID \(window.windowID) on attempt \(n) — window may no longer exist")
+                SourcePIDCache.diagLog.debug("SourcePIDCache.pid: currentBounds() returned nil for windowID \(window.windowID) on attempt \(n) — window may no longer exist")
                 return nil
             }
             if currentBounds == cachedBounds {
@@ -257,7 +258,7 @@ final class SourcePIDCache {
         }
 
         guard let windowBounds = finalBounds else {
-            Logger.default.warning("SourcePIDCache.pid: bounds did not stabilize for windowID \(window.windowID)")
+            SourcePIDCache.diagLog.warning("SourcePIDCache.pid: bounds did not stabilize for windowID \(window.windowID)")
             return nil
         }
 
@@ -300,12 +301,12 @@ final class SourcePIDCache {
                 // Match found! Update the cache.
                 let pid = app.processIdentifier
                 state.withLock { $0.pids[window.windowID] = pid }
-                Logger.default.debug("SourcePIDCache.pid: matched windowID \(window.windowID) to PID \(pid) (checked \(appsChecked) apps, \(appsWithBar) with extras bar, \(totalChildrenChecked) children)")
+                SourcePIDCache.diagLog.debug("SourcePIDCache.pid: matched windowID \(window.windowID) to PID \(pid) (checked \(appsChecked) apps, \(appsWithBar) with extras bar, \(totalChildrenChecked) children)")
                 return pid
             }
         }
 
-        Logger.default.debug("SourcePIDCache.pid: no match found for windowID \(window.windowID) bounds=\(NSStringFromRect(windowBounds)) (checked \(appsChecked) apps, \(appsWithBar) with extras bar, \(totalChildrenChecked) children)")
+        SourcePIDCache.diagLog.debug("SourcePIDCache.pid: no match found for windowID \(window.windowID) bounds=\(NSStringFromRect(windowBounds)) (checked \(appsChecked) apps, \(appsWithBar) with extras bar, \(totalChildrenChecked) children)")
         return nil
     }
 }

@@ -6,12 +6,12 @@
 //  Copyright (Thaw) © 2026 Toni Förster
 //  Licensed under the GNU GPLv3
 
-import OSLog
 import UserNotifications
 
 /// Manager for user notifications.
 @MainActor
 final class UserNotificationManager: NSObject {
+    private let diagLog = DiagLog(category: "UserNotificationManager")
     /// The shared app state.
     private(set) weak var appState: AppState?
 
@@ -32,7 +32,7 @@ final class UserNotificationManager: NSObject {
             do {
                 try await notificationCenter.requestAuthorization(options: [.badge, .alert, .sound])
             } catch {
-                Logger.default.error("Failed to request notification authorization: \(error)")
+                diagLog.error("Failed to request notification authorization: \(error)")
             }
         }
     }

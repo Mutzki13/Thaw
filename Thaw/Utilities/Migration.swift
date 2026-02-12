@@ -7,13 +7,12 @@
 //  Licensed under the GNU GPLv3
 
 import Cocoa
-import OSLog
 
 // FIXME: Migration has gotten extremely messy. It should really just be completely redone at this point.
 // TODO: Decide what needs to stay in the new implementation, and what has been around long enough that it can be removed.
 @MainActor
 struct MigrationManager {
-    private let logger = Logger(category: "Migration")
+    private let diagLog = DiagLog(category: "Migration")
 
     let appState: AppState
     let encoder = JSONEncoder()
@@ -35,7 +34,7 @@ extension MigrationManager {
         } catch let error as MigrationError {
             results.append(.failureAndLogError(error))
         } catch {
-            logger.error("Migration failed with unknown error \(error)")
+            diagLog.error("Migration failed with unknown error \(error)")
         }
 
         results += [
@@ -52,7 +51,7 @@ extension MigrationManager {
             case let .successButShowAlert(alert):
                 alert.runModal()
             case let .failureAndLogError(error):
-                logger.error("Migration failed with error \(error, privacy: .public)")
+                diagLog.error("Migration failed with error \(error)")
             }
         }
     }
@@ -73,7 +72,7 @@ extension MigrationManager {
             migrateSections0_8_0,
         ])
         Defaults.set(true, forKey: .hasMigrated0_8_0)
-        logger.info("Successfully migrated to 0.8.0 settings")
+        diagLog.info("Successfully migrated to 0.8.0 settings")
     }
 
     // MARK: Migrate Hotkeys
@@ -197,7 +196,7 @@ extension MigrationManager {
         migrateControlItems0_10_0()
 
         Defaults.set(true, forKey: .hasMigrated0_10_0)
-        logger.info("Successfully migrated to 0.10.0 settings")
+        diagLog.info("Successfully migrated to 0.10.0 settings")
     }
 
     private func migrateControlItems0_10_0() {
@@ -223,7 +222,7 @@ extension MigrationManager {
         switch result {
         case .success, .successButShowAlert:
             Defaults.set(true, forKey: .hasMigrated0_10_1)
-            logger.info("Successfully migrated to 0.10.1 settings")
+            diagLog.info("Successfully migrated to 0.10.1 settings")
         case .failureAndLogError:
             break
         }
@@ -270,7 +269,7 @@ extension MigrationManager {
         switch result {
         case .success, .successButShowAlert:
             Defaults.set(true, forKey: .hasMigrated0_11_10)
-            logger.info("Successfully migrated to 0.11.10 settings")
+            diagLog.info("Successfully migrated to 0.11.10 settings")
         case .failureAndLogError:
             break
         }
@@ -280,7 +279,7 @@ extension MigrationManager {
     private func migrateAppearanceConfiguration0_11_10() -> MigrationResult {
         guard let oldData = Defaults.data(forKey: .menuBarAppearanceConfiguration) else {
             if Defaults.object(forKey: .menuBarAppearanceConfiguration) != nil {
-                logger.warning("Previous menu bar appearance data is corrupted")
+                diagLog.warning("Previous menu bar appearance data is corrupted")
             }
             // This is either the first launch, or the data is malformed.
             // Either way, not much to do here.
@@ -328,7 +327,7 @@ extension MigrationManager {
         migrateSectionDividers0_11_13()
 
         Defaults.set(true, forKey: .hasMigrated0_11_13)
-        logger.info("Successfully migrated to 0.11.13 settings")
+        diagLog.info("Successfully migrated to 0.11.13 settings")
 
         return .success
     }
@@ -360,7 +359,7 @@ extension MigrationManager {
         migrateControlItems0_11_13_1()
 
         Defaults.set(true, forKey: .hasMigrated0_11_13_1)
-        logger.info("Successfully migrated to 0.11.13.1 settings")
+        diagLog.info("Successfully migrated to 0.11.13.1 settings")
 
         return .success
     }

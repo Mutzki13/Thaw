@@ -14,6 +14,8 @@ import Combine
 /// click/hover/scroll.
 @MainActor
 final class HIDEventManager: ObservableObject {
+    private static nonisolated let diagLog = DiagLog(category: "HIDEventManager")
+
     /// A Boolean value that indicates whether the user is dragging
     /// a menu bar item.
     @Published private(set) var isDraggingMenuBarItem = false
@@ -197,8 +199,6 @@ final class HIDEventManager: ObservableObject {
             }
         }
     }
-
-    private static let diagLog = DiagLog(category: "HIDEventManager")
 
     /// Checks the health of event monitors and taps, and attempts
     /// recovery if needed.

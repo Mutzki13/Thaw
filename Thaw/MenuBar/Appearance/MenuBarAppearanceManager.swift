@@ -8,11 +8,11 @@
 
 import Cocoa
 import Combine
-import OSLog
 
 /// A manager for the appearance of the menu bar.
 @MainActor
 final class MenuBarAppearanceManager: ObservableObject {
+    private let diagLog = DiagLog(category: "MenuBarAppearanceManager")
     /// The current menu bar appearance configuration.
     @Published var configuration: MenuBarAppearanceConfigurationV2 = .defaultConfiguration
 
@@ -51,7 +51,7 @@ final class MenuBarAppearanceManager: ObservableObject {
                 configuration = try decoder.decode(MenuBarAppearanceConfigurationV2.self, from: data)
             }
         } catch {
-            Logger.serialization.error("Error decoding menu bar appearance configuration: \(error)")
+            diagLog.error("Error decoding menu bar appearance configuration: \(error)")
         }
     }
 
@@ -78,9 +78,9 @@ final class MenuBarAppearanceManager: ObservableObject {
         $configuration
             .encode(encoder: encoder)
             .receive(on: DispatchQueue.main)
-            .sink { completion in
+            .sink { [weak self] completion in
                 if case let .failure(error) = completion {
-                    Logger.serialization.error("Error encoding menu bar appearance configuration: \(error)")
+                    self?.diagLog.error("Error encoding menu bar appearance configuration: \(error)")
                 }
             } receiveValue: { data in
                 Defaults.set(data, forKey: .menuBarAppearanceConfigurationV2)

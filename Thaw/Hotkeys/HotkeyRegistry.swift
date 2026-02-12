@@ -9,10 +9,10 @@
 import Carbon.HIToolbox
 import Cocoa
 import Combine
-import OSLog
 
 /// An object that manages the registration, storage, and unregistration of hotkeys.
 final class HotkeyRegistry {
+    private let diagLog = DiagLog(category: "HotkeyRegistry")
     /// The event kinds that a hotkey can be registered for.
     enum EventKind {
         case keyUp
@@ -134,21 +134,21 @@ final class HotkeyRegistry {
         }
 
         guard let keyCombination = hotkey.keyCombination else {
-            Logger.hotkeys.error("Hotkey does not have a valid key combination")
+            diagLog.error("Hotkey does not have a valid key combination")
             return nil
         }
 
         var status = installIfNeeded()
 
         guard status == noErr else {
-            Logger.hotkeys.error("Hotkey event handler installation failed with status \(status, privacy: .public)")
+            diagLog.error("Hotkey event handler installation failed with status \(status)")
             return nil
         }
 
         let id = Context.currentID
 
         guard registrations[id] == nil else {
-            Logger.hotkeys.error("Hotkey already registered for id \(id, privacy: .public)")
+            diagLog.error("Hotkey already registered for id \(id)")
             return nil
         }
 
@@ -164,12 +164,12 @@ final class HotkeyRegistry {
         )
 
         guard status == noErr else {
-            Logger.hotkeys.error("Hotkey registration failed with status \(status, privacy: .public)")
+            diagLog.error("Hotkey registration failed with status \(status)")
             return nil
         }
 
         guard let hotKeyRef else {
-            Logger.hotkeys.error("Hotkey registration failed due to invalid EventHotKeyRef")
+            diagLog.error("Hotkey registration failed due to invalid EventHotKeyRef")
             return nil
         }
 
@@ -190,12 +190,12 @@ final class HotkeyRegistry {
     /// its registration in an inactive state.
     private func retainedUnregister(_ id: UInt32) {
         guard let registration = registrations[id] else {
-            Logger.hotkeys.error("No registered key combination for id \(id, privacy: .public)")
+            diagLog.error("No registered key combination for id \(id)")
             return
         }
         let status = UnregisterEventHotKey(registration.hotKeyRef)
         guard status == noErr else {
-            Logger.hotkeys.error("Hotkey unregistration failed with status \(status, privacy: .public)")
+            diagLog.error("Hotkey unregistration failed with status \(status)")
             return
         }
         registration.hotKeyRef = nil
@@ -241,7 +241,7 @@ final class HotkeyRegistry {
                 let hotKeyRef
             else {
                 registrations.removeValue(forKey: registration.hotKeyID.id)
-                Logger.hotkeys.error("Hotkey registration failed with status \(status, privacy: .public)")
+                diagLog.error("Hotkey registration failed with status \(status)")
                 continue
             }
 

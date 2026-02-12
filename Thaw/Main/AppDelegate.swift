@@ -6,7 +6,6 @@
 //  Copyright (Thaw) © 2026 Toni Förster
 //  Licensed under the GNU GPLv3
 
-import OSLog
 import SwiftUI
 
 @MainActor
@@ -64,7 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
-        Logger.default.debug("Handling reopen from app icon click")
+        appState.diagLog.debug("Handling reopen from app icon click")
         openSettingsWindow()
         return true
     }
@@ -75,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             sender.activationPolicy() != .accessory,
             appState.navigationState.isAppFrontmost
         {
-            Logger.default.debug("All windows closed - deactivating with accessory activation policy")
+            appState.diagLog.debug("All windows closed - deactivating with accessory activation policy")
             appState.deactivate(withPolicy: .accessory)
         }
         return false
@@ -91,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openSettingsWindow() {
         // Always allow opening settings window from menu item clicks
         // This ensures clicking app icon, dock icon or menu bar item works correctly
-        appState.logger.debug("Opening settings window from app icon/dock/menu click")
+        appState.diagLog.debug("Opening settings window from app icon/dock/menu click")
 
         // Delay makes this more reliable for some reason.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [appState] in

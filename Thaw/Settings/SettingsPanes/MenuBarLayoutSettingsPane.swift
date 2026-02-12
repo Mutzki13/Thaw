@@ -6,7 +6,6 @@
 //  Copyright (Thaw) © 2026 Toni Förster
 //  Licensed under the GNU GPLv3
 
-import OSLog
 import SwiftUI
 
 struct MenuBarLayoutSettingsPane: View {
@@ -18,7 +17,6 @@ struct MenuBarLayoutSettingsPane: View {
     @State private var resetStatus: ResetStatus?
     @State private var isConfirmingReset = false
 
-    private let logger = Logger(category: "MenuBarLayoutPane")
     private let diagLog = DiagLog(category: "MenuBarLayoutPane")
 
     private var hasItems: Bool {

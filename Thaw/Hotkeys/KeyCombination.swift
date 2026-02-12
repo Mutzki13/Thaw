@@ -8,9 +8,9 @@
 
 import Carbon.HIToolbox
 import Cocoa
-import OSLog
 
 struct KeyCombination: Hashable {
+    fileprivate static let diagLog = DiagLog(category: "KeyCombination")
     let key: KeyCode
     let modifiers: Modifiers
 
@@ -43,11 +43,11 @@ private func getSystemReservedKeyCombinations() -> [KeyCombination] {
     let status = CopySymbolicHotKeys(&symbolicHotkeys)
 
     guard status == noErr else {
-        Logger.hotkeys.error("CopySymbolicHotKeys returned invalid status: \(status, privacy: .public)")
+        KeyCombination.diagLog.error("CopySymbolicHotKeys returned invalid status: \(status)")
         return []
     }
     guard let reservedHotkeys = symbolicHotkeys?.takeRetainedValue() as? [[String: Any]] else {
-        Logger.hotkeys.error("Failed to retrieve symbolic hotkeys")
+        KeyCombination.diagLog.error("Failed to retrieve symbolic hotkeys")
         return []
     }
 

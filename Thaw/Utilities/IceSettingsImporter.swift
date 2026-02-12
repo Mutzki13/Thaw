@@ -8,12 +8,11 @@
 
 import AppKit
 import Foundation
-import OSLog
 
 /// A type that handles importing settings from Ice.
 @MainActor
 struct IceSettingsImporter {
-    private let logger = Logger(category: "IceSettingsImporter")
+    private let diagLog = DiagLog(category: "IceSettingsImporter")
 
     /// The bundle identifier for Ice.
     private static let iceBundleIdentifier = "com.jordanbaird.Ice"
@@ -34,14 +33,14 @@ struct IceSettingsImporter {
     /// - Returns: A tuple indicating success and the number of settings imported.
     func importIceSettings() -> (success: Bool, settingsImported: Int) {
         guard let iceUserDefaults = UserDefaults(suiteName: Self.iceBundleIdentifier) else {
-            logger.warning("Could not access Ice user defaults")
+            diagLog.warning("Could not access Ice user defaults")
             return (false, 0)
         }
 
         let iceSettings = iceUserDefaults.dictionaryRepresentation()
         var settingsImported = 0
 
-        logger.info("Starting import of Ice settings. Found \(iceSettings.count) potential settings")
+        diagLog.info("Starting import of Ice settings. Found \(iceSettings.count) potential settings")
 
         // Import General Settings
         settingsImported += importGeneralSettings(from: iceSettings)
@@ -55,7 +54,7 @@ struct IceSettingsImporter {
         // Import Appearance Settings
         settingsImported += importAppearanceSettings(from: iceSettings)
 
-        logger.info("Successfully imported \(settingsImported) settings from Ice")
+        diagLog.info("Successfully imported \(settingsImported) settings from Ice")
         return (true, settingsImported)
     }
 
@@ -82,7 +81,7 @@ struct IceSettingsImporter {
             if let value = iceSettings[iceKey] {
                 Defaults.set(value, forKey: key)
                 imported += 1
-                logger.debug("Imported general setting: \(iceKey)")
+                diagLog.debug("Imported general setting: \(iceKey)")
             }
         }
 
@@ -107,7 +106,7 @@ struct IceSettingsImporter {
             if let value = iceSettings[iceKey] {
                 Defaults.set(value, forKey: key)
                 imported += 1
-                logger.debug("Imported advanced setting: \(iceKey)")
+                diagLog.debug("Imported advanced setting: \(iceKey)")
             }
         }
 
@@ -123,14 +122,14 @@ struct IceSettingsImporter {
                 return 0
             }
             Defaults.set(dataDict, forKey: .hotkeys)
-            logger.debug("Imported \(dataDict.count) hotkey settings")
+            diagLog.debug("Imported \(dataDict.count) hotkey settings")
             return dataDict.count
         }
 
         // Fallback in case the value is already a data blob.
         if let hotkeysData = iceSettings["Hotkeys"] as? Data {
             Defaults.set(hotkeysData, forKey: .hotkeys)
-            logger.debug("Imported hotkeys settings")
+            diagLog.debug("Imported hotkeys settings")
             return 1
         }
 
@@ -145,14 +144,14 @@ struct IceSettingsImporter {
         if let appearanceData = iceSettings["MenuBarAppearanceConfigurationV2"] as? Data {
             Defaults.set(appearanceData, forKey: .menuBarAppearanceConfigurationV2)
             imported += 1
-            logger.debug("Imported appearance configuration V2")
+            diagLog.debug("Imported appearance configuration V2")
         }
         // Fallback to V1 if V2 not available
         else if let appearanceData = iceSettings["MenuBarAppearanceConfiguration"] as? Data {
             // This will be handled by the existing migration system
             Defaults.set(appearanceData, forKey: .menuBarAppearanceConfiguration)
             imported += 1
-            logger.debug("Imported appearance configuration V1")
+            diagLog.debug("Imported appearance configuration V1")
         }
 
         return imported

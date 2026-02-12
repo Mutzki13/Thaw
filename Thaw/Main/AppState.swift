@@ -9,7 +9,6 @@
 import Combine
 import CoreGraphics
 import Darwin.Mach
-import OSLog
 import SwiftUI
 
 /// The model for app-wide state.
@@ -69,9 +68,8 @@ final class AppState: ObservableObject {
     /// Prevent repeated restart attempts.
     private var isRestarting = false
 
-    /// Logger for the app state.
-    let logger = Logger(category: "AppState")
-    private let diagLog = DiagLog(category: "AppState")
+    /// Diagnostic logger for the app state.
+    let diagLog = DiagLog(category: "AppState")
 
     /// Async setup actions, run once on first access.
     private lazy var setupTask = Task {
@@ -145,12 +143,12 @@ final class AppState: ObservableObject {
                 let timestamp = formatter.string(from: Date())
 
                 // Always log memory usage, not just high usage
-                logger.info("Memory usage at \(timestamp): \(memoryUsage / 1024 / 1024)MB")
+                diagLog.info("Memory usage at \(timestamp): \(memoryUsage / 1024 / 1024)MB")
 
                 // Log warnings for specific conditions
                 let memoryWarningThreshold: Int64 = 500 * 1024 * 1024 // 500MB
                 if memoryUsage > memoryWarningThreshold {
-                    logger.warning("High memory usage detected: \(memoryUsage / 1024 / 1024)MB")
+                    diagLog.warning("High memory usage detected: \(memoryUsage / 1024 / 1024)MB")
                 }
 
                 // Log component sizes for debugging
@@ -159,10 +157,10 @@ final class AppState: ObservableObject {
                     let windowCount = openWindows.count
 
                     if imageCount > 20 {
-                        logger.warning("Large image cache: \(imageCount) items")
+                        diagLog.warning("Large image cache: \(imageCount) items")
                     }
                     if windowCount > 5 {
-                        logger.warning("Many open windows: \(windowCount)")
+                        diagLog.warning("Many open windows: \(windowCount)")
                     }
                 }
 
@@ -177,7 +175,7 @@ final class AppState: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.openWindows.remove(id)
-            self.logger.debug("Dismissing window with id: \(id, privacy: .public)")
+            self.diagLog.debug("Dismissing window with id: \(id)")
             EnvironmentValues().dismissWindow(id: id)
         }
     }
@@ -204,7 +202,7 @@ final class AppState: ObservableObject {
     func performSetup(hasPermissions: Bool) {
         if hasPermissions {
             Task {
-                logger.debug("Setting up app state")
+                diagLog.debug("Setting up app state")
                 await setupTask.value
 
                 // Warm up the activation policy system.
@@ -214,7 +212,7 @@ final class AppState: ObservableObject {
 
                 prewarmMenuBarCaches()
 
-                logger.debug("Finished setting up app state")
+                diagLog.debug("Finished setting up app state")
             }
         } else {
             Task {
@@ -348,10 +346,10 @@ final class AppState: ObservableObject {
                 guard let self else { return }
                 defer { self.lastKnownScreenCount = count }
                 if count < self.lastKnownScreenCount {
-                    self.logger.warning("Detected display disconnect; restarting app to avoid stale state")
+                    self.diagLog.warning("Detected display disconnect; restarting app to avoid stale state")
                     self.restartSelf()
                 } else if count > self.lastKnownScreenCount {
-                    self.logger.warning("Detected display connect; restarting app to refresh state")
+                    self.diagLog.warning("Detected display connect; restarting app to refresh state")
                     self.restartSelf()
                 }
             }
@@ -365,7 +363,7 @@ final class AppState: ObservableObject {
         guard !isRestarting else { return }
         isRestarting = true
 
-        Task { @MainActor [logger] in
+        Task { @MainActor [diagLog] in
             let config = NSWorkspace.OpenConfiguration()
             config.activates = false
             config.addsToRecentItems = false
@@ -378,7 +376,7 @@ final class AppState: ObservableObject {
                     try? await Task.sleep(for: .milliseconds(300))
                     NSApp.terminate(nil)
                 } catch {
-                    logger.error("Failed to relaunch app: \(error.localizedDescription, privacy: .public)")
+                    diagLog.error("Failed to relaunch app: \(error.localizedDescription)")
                     isRestarting = false
                 }
             }
@@ -419,14 +417,14 @@ final class AppState: ObservableObject {
 
             // Check if window is already open to prevent recreation
             if self.openWindows.contains(id) {
-                self.logger.debug("Window \(id, privacy: .public) already open, activating existing window")
+                self.diagLog.debug("Window \(id) already open, activating existing window")
                 // If window already exists, just activate it
                 self.activate(withPolicy: .regular)
                 return
             }
 
             self.openWindows.insert(id)
-            self.logger.debug("Opening window with id: \(id, privacy: .public)")
+            self.diagLog.debug("Opening window with id: \(id)")
             EnvironmentValues().openWindow(id: id)
 
             // Ensure activation after window opens

@@ -13,6 +13,7 @@ import os.lock
 /// Manager for menu bar item spacing.
 @MainActor
 final class MenuBarItemSpacingManager {
+    private static nonisolated let diagLog = DiagLog(category: "MenuBarItemSpacingManager")
     /// UserDefaults keys.
     private enum Key: String {
         case spacing = "NSStatusItemSpacing"
@@ -40,9 +41,6 @@ final class MenuBarItemSpacingManager {
             "You may need to log out for the changes to take effect."
         }
     }
-
-    /// Logger for the menu bar item spacing manager.
-    private let diagLog = DiagLog(category: "MenuBarItemSpacingManager")
 
     /// Delay before force terminating an app.
     private let forceTerminateDelay = 1
@@ -90,12 +88,12 @@ final class MenuBarItemSpacingManager {
     /// Asynchronously signals the given app to quit.
     private func signalAppToQuit(_ app: NSRunningApplication) async throws {
         if app.isTerminated {
-            diagLog.debug(
+            MenuBarItemSpacingManager.diagLog.debug(
                 "Application \"\(app.logString)\" is already terminated"
             )
             return
         } else {
-            diagLog.debug(
+            MenuBarItemSpacingManager.diagLog.debug(
                 "Signaling application \"\(app.logString)\" to quit"
             )
         }
@@ -108,7 +106,7 @@ final class MenuBarItemSpacingManager {
             let timeoutTask = Task {
                 try await Task.sleep(for: .seconds(forceTerminateDelay))
                 if !app.isTerminated {
-                    diagLog.debug(
+                    MenuBarItemSpacingManager.diagLog.debug(
                         """
                         Application \"\(app.logString)\" did not terminate within \
                         \(self.forceTerminateDelay) seconds, attempting to force terminate
@@ -125,16 +123,15 @@ final class MenuBarItemSpacingManager {
                 }
             }
 
-            cancellable = app.publisher(for: \.isTerminated).sink { [weak self] isTerminated in
+            cancellable = app.publisher(for: \.isTerminated).sink { isTerminated in
                 guard
-                    let self,
                     isTerminated
                 else {
                     return
                 }
                 timeoutTask.cancel()
                 cancellable?.cancel()
-                diagLog.debug(
+                MenuBarItemSpacingManager.diagLog.debug(
                     "Application \"\(app.logString)\" terminated successfully"
                 )
                 if didResume.withLock({ let old = $0; $0 = true; return !old }) {
@@ -152,7 +149,7 @@ final class MenuBarItemSpacingManager {
         if let app = NSWorkspace.shared.runningApplications.first(where: {
             $0.bundleIdentifier == bundleIdentifier
         }) {
-            diagLog.debug(
+            MenuBarItemSpacingManager.diagLog.debug(
                 "Application \"\(app.logString)\" is already open, so skipping launch"
             )
             return

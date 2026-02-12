@@ -7,7 +7,6 @@
 //  Licensed under the GNU GPLv3
 
 import Combine
-import OSLog
 import SwiftUI
 
 // MARK: - GeneralSettings
@@ -15,6 +14,7 @@ import SwiftUI
 /// Model for the app's General settings.
 @MainActor
 final class GeneralSettings: ObservableObject {
+    private let diagLog = DiagLog(category: "GeneralSettings")
     /// A Boolean value that indicates whether the Ice icon
     /// should be shown.
     @Published var showIceIcon = true
@@ -112,7 +112,7 @@ final class GeneralSettings: ObservableObject {
             do {
                 iceIcon = try decoder.decode(ControlItemImageSet.self, from: data)
             } catch {
-                Logger.serialization.error("Error decoding \(Constants.displayName) icon: \(error, privacy: .public)")
+                diagLog.error("Error decoding \(Constants.displayName) icon: \(error)")
             }
             if case .custom = iceIcon.name {
                 lastCustomIceIcon = iceIcon
@@ -144,7 +144,7 @@ final class GeneralSettings: ObservableObject {
                     let data = try encoder.encode(iceIcon)
                     Defaults.set(data, forKey: .iceIcon)
                 } catch {
-                    Logger.serialization.error("Error encoding \(Constants.displayName) icon: \(error, privacy: .public)")
+                    diagLog.error("Error encoding \(Constants.displayName) icon: \(error)")
                 }
             }
             .store(in: &c)

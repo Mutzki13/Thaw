@@ -12,7 +12,7 @@ import SwiftUI
 
 /// A panel that contains the menu bar search interface.
 final class MenuBarSearchPanel: NSPanel {
-    private static let diagLog = DiagLog(category: "MenuBarSearchPanel")
+    private static nonisolated let diagLog = DiagLog(category: "MenuBarSearchPanel")
 
     /// The shared app state.
     private weak var appState: AppState?

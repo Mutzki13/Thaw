@@ -8,10 +8,10 @@
 
 import Cocoa
 import Combine
-import OSLog
 
 /// Cache for menu bar item images.
 final class MenuBarItemImageCache: ObservableObject {
+    private static nonisolated let diagLog = DiagLog(category: "MenuBarItemImageCache")
     /// A representation of a captured menu bar item image.
     struct CapturedImage: Hashable {
         /// The base image.
@@ -64,14 +64,6 @@ final class MenuBarItemImageCache: ObservableObject {
     /// Configuration for failed capture handling
     private static let maxFailuresBeforeBlacklist = 3
     private static let blacklistCooldownSeconds: TimeInterval = 30 // 30 seconds
-
-    /// Logger for the menu bar item image cache.
-    private let logger = Logger(
-        subsystem: "com.stonerl.Thaw",
-        category: "MenuBarItemImageCache"
-    )
-
-    private let diagLog = DiagLog(category: "MenuBarItemImageCache")
 
     /// Queue to run cache operations.
     private let queue = DispatchQueue(
@@ -190,7 +182,7 @@ final class MenuBarItemImageCache: ObservableObject {
         }
 
         if boundsFailCount > 0 {
-            diagLog.warning("compositeCapture: \(boundsFailCount)/\(items.count) items had no bounds (getWindowBounds returned nil)")
+            MenuBarItemImageCache.diagLog.warning("compositeCapture: \(boundsFailCount)/\(items.count) items had no bounds (getWindowBounds returned nil)")
         }
 
         let compositeImage = ScreenCapture.captureWindows(
@@ -199,7 +191,7 @@ final class MenuBarItemImageCache: ObservableObject {
         )
 
         guard let compositeImage else {
-            diagLog.warning("compositeCapture: ScreenCapture.captureWindows returned nil for \(windowIDs.count) windows")
+            MenuBarItemImageCache.diagLog.warning("compositeCapture: ScreenCapture.captureWindows returned nil for \(windowIDs.count) windows")
             result.excluded = items
             return result
         }
@@ -207,13 +199,13 @@ final class MenuBarItemImageCache: ObservableObject {
         let expectedWidth = boundsUnion.width * scale
         let actualWidth = CGFloat(compositeImage.width)
         guard actualWidth == expectedWidth else {
-            diagLog.warning("compositeCapture: width mismatch — expected \(expectedWidth) (boundsUnion.width=\(boundsUnion.width) * scale=\(scale)) but got \(actualWidth). Image dimensions: \(compositeImage.width)x\(compositeImage.height)")
+            MenuBarItemImageCache.diagLog.warning("compositeCapture: width mismatch — expected \(expectedWidth) (boundsUnion.width=\(boundsUnion.width) * scale=\(scale)) but got \(actualWidth). Image dimensions: \(compositeImage.width)x\(compositeImage.height)")
             result.excluded = items
             return result
         }
 
         guard !compositeImage.isTransparent() else {
-            diagLog.warning("compositeCapture: composite image is fully transparent (\(compositeImage.width)x\(compositeImage.height)) — screen recording permission may not be effective")
+            MenuBarItemImageCache.diagLog.warning("compositeCapture: composite image is fully transparent (\(compositeImage.width)x\(compositeImage.height)) — screen recording permission may not be effective")
             result.excluded = items
             return result
         }
@@ -226,7 +218,7 @@ final class MenuBarItemImageCache: ObservableObject {
 
             // Check if this item should be skipped due to repeated failures
             if shouldSkipCapture(for: item) {
-                logger.debug(
+                MenuBarItemImageCache.diagLog.debug(
                     "Skipping composite capture for repeatedly failing item: \(item.logString)"
                 )
                 result.excluded.append(item)
@@ -276,7 +268,7 @@ final class MenuBarItemImageCache: ObservableObject {
         for item in items {
             // Check if this item should be skipped due to repeated failures
             if shouldSkipCapture(for: item) {
-                logger.debug(
+                MenuBarItemImageCache.diagLog.debug(
                     "Skipping capture for repeatedly failing item: \(item.logString)"
                 )
                 skippedCount += 1
@@ -290,7 +282,7 @@ final class MenuBarItemImageCache: ObservableObject {
             )
 
             guard let image else {
-                diagLog.debug("individualCapture: captureWindow returned nil for \(item.logString)")
+                MenuBarItemImageCache.diagLog.debug("individualCapture: captureWindow returned nil for \(item.logString)")
                 nilImageCount += 1
                 recordCaptureFailure(for: item)
                 result.excluded.append(item)
@@ -298,7 +290,7 @@ final class MenuBarItemImageCache: ObservableObject {
             }
 
             guard !image.isTransparent() else {
-                diagLog.debug("individualCapture: captured image is transparent for \(item.logString) (\(image.width)x\(image.height))")
+                MenuBarItemImageCache.diagLog.debug("individualCapture: captured image is transparent for \(item.logString) (\(image.width)x\(image.height))")
                 transparentCount += 1
                 recordCaptureFailure(for: item)
                 result.excluded.append(item)
@@ -314,7 +306,7 @@ final class MenuBarItemImageCache: ObservableObject {
             )
         }
 
-        diagLog.debug("individualCapture: \(items.count) items -> \(capturedCount) captured, \(nilImageCount) nil, \(transparentCount) transparent, \(skippedCount) skipped (blacklisted)")
+        MenuBarItemImageCache.diagLog.debug("individualCapture: \(items.count) items -> \(capturedCount) captured, \(nilImageCount) nil, \(transparentCount) transparent, \(skippedCount) skipped (blacklisted)")
         return result
     }
 
@@ -329,7 +321,7 @@ final class MenuBarItemImageCache: ObservableObject {
         if await appState.itemManager.lastMoveOperationOccurred(
             within: .seconds(2)
         ) {
-            logger.debug("Capturing individually due to recent item movement")
+            MenuBarItemImageCache.diagLog.debug("Capturing individually due to recent item movement")
             return individualCapture(items, scale: scale)
         }
 
@@ -339,10 +331,10 @@ final class MenuBarItemImageCache: ObservableObject {
             return compositeResult // All items captured successfully.
         }
 
-        logger.notice(
+        MenuBarItemImageCache.diagLog.notice(
             """
             Some items were excluded from composite capture. Attempting to capture \
-            excluded items individually: \(compositeResult.excluded, privacy: .public)
+            excluded items individually: \(compositeResult.excluded)
             """
         )
 
@@ -374,8 +366,8 @@ final class MenuBarItemImageCache: ObservableObject {
             appState: appState
         )
         if !captureResult.excluded.isEmpty {
-            logger.error(
-                "Some items failed capture: \(captureResult.excluded, privacy: .public)"
+            MenuBarItemImageCache.diagLog.error(
+                "Some items failed capture: \(captureResult.excluded)"
             )
         }
         return captureResult.images
@@ -455,7 +447,7 @@ final class MenuBarItemImageCache: ObservableObject {
                 images.removeValue(forKey: tag)
                 accessOrder.removeAll { $0 == tag }
             }
-            logger.info(
+            MenuBarItemImageCache.diagLog.info(
                 "Memory pressure: Cleared \(tagsToRemove.count) items from cache"
             )
         }
@@ -517,7 +509,7 @@ final class MenuBarItemImageCache: ObservableObject {
         }
 
         if removedCount > 0 {
-            logger.info(
+            MenuBarItemImageCache.diagLog.info(
                 "Cache cleanup: removed \(removedCount) invalid entries with missing window information"
             )
         }
@@ -532,7 +524,7 @@ final class MenuBarItemImageCache: ObservableObject {
         let removedCount = validateAndCleanupInvalidEntries()
         let failedCleared = failedCaptures.count
         failedCaptures.removeAll()
-        logger.info(
+        MenuBarItemImageCache.diagLog.info(
             "Manual cache cleanup completed: removed \(removedCount) invalid entries, cleared \(failedCleared) failed captures"
         )
     }
@@ -549,7 +541,7 @@ final class MenuBarItemImageCache: ObservableObject {
             $0.failureCount >= Self.maxFailuresBeforeBlacklist
         }.count
 
-        logger.info(
+        MenuBarItemImageCache.diagLog.info(
             """
             === Image Cache Status: \(context) ===
             Cache size: \(imageSize)/\(maxSize) (\(usagePercent)% full)
@@ -568,25 +560,25 @@ final class MenuBarItemImageCache: ObservableObject {
     /// caching is necessary.
     func updateCacheWithoutChecks(sections: [MenuBarSection.Name]) async {
         guard let appState else {
-            diagLog.warning("updateCacheWithoutChecks: appState is nil, aborting")
+            MenuBarItemImageCache.diagLog.warning("updateCacheWithoutChecks: appState is nil, aborting")
             return
         }
 
         let hasScreenRecording = await appState.hasPermission(.screenRecording)
         guard hasScreenRecording else {
-            diagLog.debug("updateCacheWithoutChecks: no screen recording permission, aborting")
+            MenuBarItemImageCache.diagLog.debug("updateCacheWithoutChecks: no screen recording permission, aborting")
             return
         }
 
         guard let displayID = await appState.itemManager.itemCache.displayID else {
-            diagLog.warning("updateCacheWithoutChecks: itemCache.displayID is nil, aborting")
+            MenuBarItemImageCache.diagLog.warning("updateCacheWithoutChecks: itemCache.displayID is nil, aborting")
             return
         }
 
         guard let screen = NSScreen.screens.first(where: {
             $0.displayID == displayID
         }) else {
-            diagLog.warning("updateCacheWithoutChecks: no screen found for displayID \(displayID)")
+            MenuBarItemImageCache.diagLog.warning("updateCacheWithoutChecks: no screen found for displayID \(displayID)")
             return
         }
 
@@ -605,8 +597,8 @@ final class MenuBarItemImageCache: ObservableObject {
             )
 
             guard !sectionImages.isEmpty else {
-                logger.warning(
-                    "Failed item image cache for \(section.logString, privacy: .public)"
+                MenuBarItemImageCache.diagLog.warning(
+                    "Failed item image cache for \(section.logString)"
                 )
                 continue
             }
@@ -670,7 +662,7 @@ final class MenuBarItemImageCache: ObservableObject {
                 }
 
                 if !tagsToRemove.isEmpty {
-                    logger.info(
+                    MenuBarItemImageCache.diagLog.info(
                         "LRU cache eviction: removed \(tagsToRemove.count) least recently used images (\(protectedTags.count) protected)"
                     )
                 }
@@ -697,14 +689,14 @@ final class MenuBarItemImageCache: ObservableObject {
 
             // Log cache status for monitoring (verbose only when needed)
             if afterCount > 30 || totalRemoved > 0 {
-                logger.info(
+                MenuBarItemImageCache.diagLog.info(
                     "Image cache: \(afterCount) images, LRU order: \(finalAccessOrderCount) entries (removed \(totalRemoved) stale+invalid images)"
                 )
             }
 
             // Warning if cache and access order are out of sync
             if afterCount != finalAccessOrderCount {
-                logger.warning(
+                MenuBarItemImageCache.diagLog.warning(
                     "Cache inconsistency: \(afterCount) cached images vs \(finalAccessOrderCount) LRU entries"
                 )
             }
@@ -714,7 +706,7 @@ final class MenuBarItemImageCache: ObservableObject {
     /// Updates the cache for the given sections, if necessary.
     func updateCache(sections: [MenuBarSection.Name], skipRecentMoveCheck: Bool = false) async {
         guard let appState else {
-            diagLog.debug("updateCache: appState is nil, skipping")
+            MenuBarItemImageCache.diagLog.debug("updateCache: appState is nil, skipping")
             return
         }
 
@@ -738,14 +730,14 @@ final class MenuBarItemImageCache: ObservableObject {
                     within: .seconds(1)
                 )
             else {
-                logger.debug(
+                MenuBarItemImageCache.diagLog.debug(
                     "Skipping item image cache due to recent item movement"
                 )
                 return
             }
         }
 
-        diagLog.debug("updateCache: proceeding with cache update for \(sections.count) sections (iceBar=\(isIceBarPresented), search=\(isSearchPresented))")
+        MenuBarItemImageCache.diagLog.debug("updateCache: proceeding with cache update for \(sections.count) sections (iceBar=\(isIceBarPresented), search=\(isSearchPresented))")
         await updateCacheWithoutChecks(sections: sections)
     }
 
@@ -803,7 +795,7 @@ final class MenuBarItemImageCache: ObservableObject {
     func cacheFailed(for section: MenuBarSection.Name) -> Bool {
         let hasPermission = ScreenCapture.cachedCheckPermissions()
         guard hasPermission else {
-            diagLog.debug("cacheFailed(\(section.logString)): no screen recording permission (cachedCheckPermissions=false)")
+            MenuBarItemImageCache.diagLog.debug("cacheFailed(\(section.logString)): no screen recording permission (cachedCheckPermissions=false)")
             return true
         }
         let items = appState?.itemManager.itemCache[section] ?? []
@@ -814,7 +806,7 @@ final class MenuBarItemImageCache: ObservableObject {
         for item in items where keys.contains(item.tag) {
             return false
         }
-        diagLog.debug("cacheFailed(\(section.logString)): no cached images found for \(items.count) items in section (total cached images: \(self.images.count))")
+        MenuBarItemImageCache.diagLog.debug("cacheFailed(\(section.logString)): no cached images found for \(items.count) items in section (total cached images: \(self.images.count))")
         return true
     }
 }

@@ -8,11 +8,11 @@
 
 import Combine
 import Foundation
-import OSLog
 
 /// Model for the app's Hotkeys settings.
 @MainActor
 final class HotkeysSettings: ObservableObject {
+    private let diagLog = DiagLog(category: "HotkeysSettings")
     /// The app's hotkey registry.
     let registry = HotkeyRegistry()
 
@@ -60,7 +60,7 @@ final class HotkeysSettings: ObservableObject {
                     hotkey.keyCombination = keyCombination
                 }
             } catch {
-                Logger.serialization.error("Error decoding hotkey: \(error, privacy: .public)")
+                diagLog.error("Error decoding hotkey: \(error)")
             }
         }
     }
@@ -73,9 +73,9 @@ final class HotkeysSettings: ObservableObject {
             hotkey.$keyCombination
                 .encode(encoder: encoder)
                 .receive(on: DispatchQueue.main)
-                .sink { completion in
+                .sink { [weak self] completion in
                     if case let .failure(error) = completion {
-                        Logger.serialization.error("Error encoding hotkey: \(error, privacy: .public)")
+                        self?.diagLog.error("Error encoding hotkey: \(error)")
                     }
                 } receiveValue: { data in
                     withMutableCopy(of: Defaults.dictionary(forKey: .hotkeys) ?? [:]) { dictionary in

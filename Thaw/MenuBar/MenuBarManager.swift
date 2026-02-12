@@ -30,7 +30,7 @@ final class MenuBarManager: ObservableObject {
     /// Reference to the settings window.
     @Published private var settingsWindow: NSWindow?
 
-    /// Logger for the menu bar manager.
+    /// Diagnostic logger for the menu bar manager.
     private let diagLog = DiagLog(category: "MenuBarManager")
 
     /// The shared app state.

@@ -8,12 +8,12 @@
 
 import Cocoa
 import Combine
-import OSLog
 
 // MARK: - Overlay Panel
 
 /// A subclass of `NSPanel` that sits atop the menu bar to alter its appearance.
 final class MenuBarOverlayPanel: NSPanel {
+    private let diagLog = DiagLog(category: "MenuBarOverlayPanel")
     /// Flags representing the updatable components of a panel.
     enum UpdateFlag: String, CustomStringConvertible {
         case applicationMenuFrame
@@ -84,9 +84,6 @@ final class MenuBarOverlayPanel: NSPanel {
             tasks.removeValue(forKey: flag)?.cancel()
         }
     }
-
-    /// Shared logger for overlay panels.
-    private static let logger = Logger(category: "MenuBarOverlayPanel")
 
     /// A Boolean value that indicates whether the panel needs to be shown.
     @Published var needsShow = false
@@ -324,22 +321,16 @@ final class MenuBarOverlayPanel: NSPanel {
             case .updates: "Preventing overlay panel from updating."
             }
         guard let appState else {
-            MenuBarOverlayPanel.logger.debug(
-                "No app state. \(actionMessage, privacy: .public)"
-            )
+            diagLog.debug("No app state. \(actionMessage)")
             return false
         }
         guard !appState.menuBarManager.isMenuBarHiddenBySystemUserDefaults
         else {
-            MenuBarOverlayPanel.logger.debug(
-                "Menu bar is hidden by system. \(actionMessage, privacy: .public)"
-            )
+            diagLog.debug("Menu bar is hidden by system. \(actionMessage)")
             return false
         }
         guard !appState.activeSpace.isFullscreen else {
-            MenuBarOverlayPanel.logger.debug(
-                "Active space is fullscreen. \(actionMessage, privacy: .public)"
-            )
+            diagLog.debug("Active space is fullscreen. \(actionMessage)")
             return false
         }
         guard
@@ -348,9 +339,7 @@ final class MenuBarOverlayPanel: NSPanel {
                 for: owningScreen.displayID
             )
         else {
-            MenuBarOverlayPanel.logger.debug(
-                "No valid menu bar found. \(actionMessage, privacy: .public)"
-            )
+            diagLog.debug("No valid menu bar found. \(actionMessage)")
             return false
         }
         return true
@@ -423,9 +412,7 @@ final class MenuBarOverlayPanel: NSPanel {
         }
 
         guard appState.appearanceManager.overlayPanels.contains(self) else {
-            MenuBarOverlayPanel.logger.warning(
-                "Overlay panel \(self) not retained"
-            )
+            diagLog.warning("Overlay panel \(self) not retained")
             return
         }
 

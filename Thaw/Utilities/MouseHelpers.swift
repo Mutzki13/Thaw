@@ -8,19 +8,10 @@
 
 import CoreGraphics
 import Foundation
-import OSLog
-
-// MARK: - Logger Extension
-
-private extension Logger {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? ""
-
-    /// Logger for mouse helper operations.
-    static let mouseHelpers = Logger(subsystem: subsystem, category: "MouseHelpers")
-}
 
 /// A namespace for mouse helper operations.
 enum MouseHelpers {
+    private static let diagLog = DiagLog(category: "MouseHelpers")
     private static let cursorLock = DispatchQueue(label: "MouseHelpers.cursorLock")
     private static var cursorHideCount = 0
     private static var autoShowWorkItem: DispatchWorkItem?
@@ -49,7 +40,7 @@ enum MouseHelpers {
         }
         autoShowWorkItem?.cancel()
         autoShowWorkItem = workItem
-        Logger.mouseHelpers.debug("Cursor watchdog scheduled for \(formattedTimeout(timeout))")
+        diagLog.debug("Cursor watchdog scheduled for \(formattedTimeout(timeout))")
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout, execute: workItem)
     }
 
@@ -62,9 +53,9 @@ enum MouseHelpers {
         cursorLock.sync { cursorHideCount = 0 }
         let result = CGDisplayShowCursor(CGMainDisplayID())
         if result != .success {
-            Logger.mouseHelpers.error("Force show cursor failed (reason: \(reason), error: \(result.rawValue))")
+            diagLog.error("Force show cursor failed (reason: \(reason), error: \(result.rawValue))")
         } else {
-            Logger.mouseHelpers.info("Cursor force-shown (reason: \(reason))")
+            diagLog.info("Cursor force-shown (reason: \(reason))")
         }
     }
 
@@ -94,7 +85,7 @@ enum MouseHelpers {
 
         let result = CGDisplayHideCursor(CGMainDisplayID())
         if result != .success {
-            Logger.mouseHelpers.error("CGDisplayHideCursor failed with error code \(result.rawValue)")
+            diagLog.error("CGDisplayHideCursor failed with error code \(result.rawValue)")
             cursorLock.sync { cursorHideCount = 0 } // Reset on failure
         } else {
             scheduleAutoShow(after: watchdogTimeout ?? defaultWatchdogTimeout)
@@ -116,7 +107,7 @@ enum MouseHelpers {
         }
 
         if wasAlreadyZero {
-            Logger.mouseHelpers.debug("showCursor called with count already zero")
+            diagLog.debug("showCursor called with count already zero")
             return
         }
 
@@ -126,7 +117,7 @@ enum MouseHelpers {
 
         let result = CGDisplayShowCursor(CGMainDisplayID())
         if result != .success {
-            Logger.mouseHelpers.error("CGDisplayShowCursor failed with error code \(result.rawValue)")
+            diagLog.error("CGDisplayShowCursor failed with error code \(result.rawValue)")
             // Don't reset count on failure to prevent imbalance
         }
     }
@@ -139,7 +130,7 @@ enum MouseHelpers {
     static func warpCursor(to point: CGPoint) {
         let result = CGWarpMouseCursorPosition(point)
         if result != .success {
-            Logger.mouseHelpers.error("CGWarpMouseCursorPosition failed with error code \(result.rawValue)")
+            diagLog.error("CGWarpMouseCursorPosition failed with error code \(result.rawValue)")
         }
     }
 
@@ -150,7 +141,7 @@ enum MouseHelpers {
     static func associateMouseAndCursor(_ connected: Bool) {
         let result = CGAssociateMouseAndMouseCursorPosition(connected ? 1 : 0)
         if result != .success {
-            Logger.mouseHelpers.error("CGAssociateMouseAndMouseCursorPosition failed with error code \(result.rawValue)")
+            diagLog.error("CGAssociateMouseAndMouseCursorPosition failed with error code \(result.rawValue)")
         }
     }
 

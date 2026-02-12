@@ -7,7 +7,6 @@
 //  Licensed under the GNU GPLv3
 
 import Combine
-import OSLog
 
 // MARK: - Hotkey
 
@@ -15,6 +14,7 @@ import OSLog
 /// trigger actions on system-wide key-up or key-down events.
 @MainActor
 final class Hotkey: ObservableObject {
+    fileprivate static nonisolated let diagLog = DiagLog(category: "Hotkey")
     /// The hotkey's key combination.
     @Published var keyCombination: KeyCombination? {
         didSet {
@@ -100,7 +100,7 @@ extension Hotkey {
                 return
             }
             guard let registry else {
-                Logger.hotkeys.error("Error invalidating hotkey: missing HotkeyRegistry")
+                Hotkey.diagLog.error("Error invalidating hotkey: missing HotkeyRegistry")
                 return
             }
             defer {

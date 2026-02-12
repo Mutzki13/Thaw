@@ -8,7 +8,6 @@
 
 import Cocoa
 import Combine
-import OSLog
 
 /// Simple actor-based semaphore to prevent overlapping operations
 actor SimpleSemaphore {
@@ -97,11 +96,8 @@ final class MenuBarItemManager: ObservableObject {
     /// The current cache of menu bar items.
     @Published private(set) var itemCache = ItemCache(displayID: nil)
 
-    /// Logger for the menu bar item manager.
-    private nonisolated let logger = Logger.menuBarItemManager
-
     /// Diagnostic logger for the menu bar item manager.
-    private let diagLog = DiagLog(category: "MenuBarItemManager")
+    fileprivate static nonisolated let diagLog = DiagLog(category: "MenuBarItemManager")
 
     /// Semaphore to prevent overlapping event operations.
     private let eventSemaphore = SimpleSemaphore(value: 1)
@@ -215,21 +211,21 @@ final class MenuBarItemManager: ObservableObject {
 
     /// Sets up the manager.
     func performSetup(with appState: AppState) async {
-        diagLog.debug("performSetup: starting MenuBarItemManager setup")
+        MenuBarItemManager.diagLog.debug("performSetup: starting MenuBarItemManager setup")
         self.appState = appState
         loadKnownItemIdentifiers()
         loadPinnedBundleIDs()
         loadPendingRelocations()
-        diagLog.debug("performSetup: loaded \(self.knownItemIdentifiers.count) known identifiers, \(self.pinnedHiddenBundleIDs.count) pinned hidden, \(self.pinnedAlwaysHiddenBundleIDs.count) pinned always-hidden")
+        MenuBarItemManager.diagLog.debug("performSetup: loaded \(self.knownItemIdentifiers.count) known identifiers, \(self.pinnedHiddenBundleIDs.count) pinned hidden, \(self.pinnedAlwaysHiddenBundleIDs.count) pinned always-hidden")
         // On first launch (no known identifiers), avoid auto-relocating the leftmost item
         // so everything remains in the hidden section until the user interacts.
         suppressNextNewLeftmostItemRelocation = knownItemIdentifiers.isEmpty
-        diagLog.debug("performSetup: calling initial cacheItemsRegardless")
+        MenuBarItemManager.diagLog.debug("performSetup: calling initial cacheItemsRegardless")
         await cacheItemsRegardless()
-        diagLog.debug("performSetup: initial cache complete, items in cache: visible=\(self.itemCache[.visible].count), hidden=\(self.itemCache[.hidden].count), alwaysHidden=\(self.itemCache[.alwaysHidden].count), managedItems=\(self.itemCache.managedItems.count)")
+        MenuBarItemManager.diagLog.debug("performSetup: initial cache complete, items in cache: visible=\(self.itemCache[.visible].count), hidden=\(self.itemCache[.hidden].count), alwaysHidden=\(self.itemCache[.alwaysHidden].count), managedItems=\(self.itemCache.managedItems.count)")
         configureCancellables(with: appState)
         configureCacheTick()
-        diagLog.debug("performSetup: MenuBarItemManager setup complete")
+        MenuBarItemManager.diagLog.debug("performSetup: MenuBarItemManager setup complete")
     }
 
     /// Configures the internal observers for the manager.
@@ -556,7 +552,7 @@ extension MenuBarItemManager {
         controlItems: ControlItemPair,
         displayID: CGDirectDisplayID?
     ) async {
-        diagLog.debug("uncheckedCacheItems: processing \(items.count) items for caching")
+        MenuBarItemManager.diagLog.debug("uncheckedCacheItems: processing \(items.count) items for caching")
         var context = CacheContext(controlItems: controlItems, displayID: displayID)
 
         var validCount = 0
@@ -572,13 +568,13 @@ extension MenuBarItemManager {
 
         for item in items where context.isValidForCaching(item) {
             guard seenTags.insert(item.tag).inserted else {
-                diagLog.debug("uncheckedCacheItems: skipping duplicate tag \(item.logString)")
+                MenuBarItemManager.diagLog.debug("uncheckedCacheItems: skipping duplicate tag \(item.logString)")
                 continue
             }
 
             validCount += 1
             if item.sourcePID == nil {
-                logger.warning("Missing sourcePID for \(item.logString, privacy: .public)")
+                MenuBarItemManager.diagLog.warning("Missing sourcePID for \(item.logString)")
             }
 
             if let temp = temporarilyShownItemContexts.first(where: { $0.tag == item.tag }) {
@@ -595,7 +591,7 @@ extension MenuBarItemManager {
             }
 
             noSectionCount += 1
-            diagLog.warning("Couldn't find section for caching \(item.logString) bounds=\(NSStringFromRect(item.bounds))")
+            MenuBarItemManager.diagLog.warning("Couldn't find section for caching \(item.logString) bounds=\(NSStringFromRect(item.bounds))")
             context.shouldClearCachedItemWindowIDs = true
         }
 
@@ -604,24 +600,24 @@ extension MenuBarItemManager {
             invalidCount += 1
         }
 
-        diagLog.debug("uncheckedCacheItems: \(validCount) valid, \(invalidCount) invalid (filtered), \(noSectionCount) couldn't find section, \(context.temporarilyShownItems.count) temporarily shown")
+        MenuBarItemManager.diagLog.debug("uncheckedCacheItems: \(validCount) valid, \(invalidCount) invalid (filtered), \(noSectionCount) couldn't find section, \(context.temporarilyShownItems.count) temporarily shown")
 
         for (item, destination) in context.temporarilyShownItems {
             context.cache.insert(item, at: destination)
         }
 
         if context.shouldClearCachedItemWindowIDs {
-            logger.info("Clearing cached menu bar item windowIDs")
+            MenuBarItemManager.diagLog.info("Clearing cached menu bar item windowIDs")
             await cacheActor.clearCachedItemWindowIDs() // Ensure next cache isn't skipped.
         }
 
         guard itemCache != context.cache else {
-            logger.debug("Not updating menu bar item cache, as items haven't changed")
+            MenuBarItemManager.diagLog.debug("Not updating menu bar item cache, as items haven't changed")
             return
         }
 
         itemCache = context.cache
-        diagLog.debug("Updated menu bar item cache: visible=\(context.cache[.visible].count), hidden=\(context.cache[.hidden].count), alwaysHidden=\(context.cache[.alwaysHidden].count)")
+        MenuBarItemManager.diagLog.debug("Updated menu bar item cache: visible=\(context.cache[.visible].count), hidden=\(context.cache[.hidden].count), alwaysHidden=\(context.cache[.alwaysHidden].count)")
     }
 
     /// Caches the current menu bar items, regardless of whether the
@@ -634,36 +630,36 @@ extension MenuBarItemManager {
         _ currentItemWindowIDs: [CGWindowID]? = nil,
         skipRecentMoveCheck: Bool = false
     ) async {
-        diagLog.debug("cacheItemsRegardless: entering (skipRecentMoveCheck=\(skipRecentMoveCheck), hasCurrentItemWindowIDs=\(currentItemWindowIDs != nil))")
+        MenuBarItemManager.diagLog.debug("cacheItemsRegardless: entering (skipRecentMoveCheck=\(skipRecentMoveCheck), hasCurrentItemWindowIDs=\(currentItemWindowIDs != nil))")
         await cacheActor.runCacheTask { [weak self] in
             guard let self else {
-                self?.diagLog.warning("cacheItemsRegardless: self is nil, aborting")
+                MenuBarItemManager.diagLog.warning("cacheItemsRegardless: self is nil, aborting")
                 return
             }
 
             guard skipRecentMoveCheck || !lastMoveOperationOccurred(within: .seconds(1)) else {
-                logger.debug("Skipping menu bar item cache due to recent item movement")
+                MenuBarItemManager.diagLog.debug("Skipping menu bar item cache due to recent item movement")
                 return
             }
 
             let previousWindowIDs = await cacheActor.cachedItemWindowIDs
             let displayID = Bridging.getActiveMenuBarDisplayID()
-            diagLog.debug("cacheItemsRegardless: displayID=\(displayID.map { "\($0)" } ?? "nil"), previousWindowIDs count=\(previousWindowIDs.count)")
+            MenuBarItemManager.diagLog.debug("cacheItemsRegardless: displayID=\(displayID.map { "\($0)" } ?? "nil"), previousWindowIDs count=\(previousWindowIDs.count)")
 
             var items = await MenuBarItem.getMenuBarItems(option: .activeSpace)
 
             if items.isEmpty {
                 // Retry once after a small delay if we got zero items. This can happen
                 // due to transient WindowServer glitches or during display reconfigurations.
-                diagLog.warning("cacheItemsRegardless: getMenuBarItems returned ZERO items, retrying in 250ms...")
+                MenuBarItemManager.diagLog.warning("cacheItemsRegardless: getMenuBarItems returned ZERO items, retrying in 250ms...")
                 try? await Task.sleep(for: .milliseconds(250))
                 items = await MenuBarItem.getMenuBarItems(option: .activeSpace)
             }
 
-            diagLog.debug("cacheItemsRegardless: getMenuBarItems returned \(items.count) items")
+            MenuBarItemManager.diagLog.debug("cacheItemsRegardless: getMenuBarItems returned \(items.count) items")
 
             if items.isEmpty {
-                diagLog.error("cacheItemsRegardless: getMenuBarItems returned ZERO items even after retry — this is the root cause of 'Loading menu bar items' being stuck")
+                MenuBarItemManager.diagLog.error("cacheItemsRegardless: getMenuBarItems returned ZERO items even after retry — this is the root cause of 'Loading menu bar items' being stuck")
             }
 
             let itemWindowIDs = currentItemWindowIDs ?? items.reversed().map { $0.windowID }
@@ -675,7 +671,7 @@ extension MenuBarItemManager {
             }
 
             for item in items {
-                diagLog.debug("cacheItemsRegardless: item tag=\(item.tag) title=\(item.title ?? "nil") windowID=\(item.windowID) sourcePID=\(item.sourcePID.map { "\($0)" } ?? "nil") ownerPID=\(item.ownerPID)")
+                MenuBarItemManager.diagLog.debug("cacheItemsRegardless: item tag=\(item.tag) title=\(item.title ?? "nil") windowID=\(item.windowID) sourcePID=\(item.sourcePID.map { "\($0)" } ?? "nil") ownerPID=\(item.ownerPID)")
             }
 
             // Obtain window IDs from the actual ControlItem objects so the
@@ -694,12 +690,12 @@ extension MenuBarItemManager {
                 alwaysHiddenControlItemWindowID: alwaysHiddenControlItemWID
             ) else {
                 // ???: Is clearing the cache the best thing to do here?
-                diagLog.warning("cacheItemsRegardless: Missing control item for hidden section (expected tag: \(MenuBarItemTag.hiddenControlItem)), clearing cache. Items remaining: \(items.count), windowIDs: \(itemWindowIDs.count). hiddenControlItemWID=\(hiddenControlItemWID.map { "\($0)" } ?? "nil"), alwaysHiddenControlItemWID=\(alwaysHiddenControlItemWID.map { "\($0)" } ?? "nil")")
+                MenuBarItemManager.diagLog.warning("cacheItemsRegardless: Missing control item for hidden section (expected tag: \(MenuBarItemTag.hiddenControlItem)), clearing cache. Items remaining: \(items.count), windowIDs: \(itemWindowIDs.count). hiddenControlItemWID=\(hiddenControlItemWID.map { "\($0)" } ?? "nil"), alwaysHiddenControlItemWID=\(alwaysHiddenControlItemWID.map { "\($0)" } ?? "nil")")
                 itemCache = ItemCache(displayID: nil)
                 return
             }
 
-            diagLog.debug("cacheItemsRegardless: found control items, hidden windowID=\(controlItems.hidden.windowID), alwaysHidden=\(controlItems.alwaysHidden.map { "\($0.windowID)" } ?? "nil")")
+            MenuBarItemManager.diagLog.debug("cacheItemsRegardless: found control items, hidden windowID=\(controlItems.hidden.windowID), alwaysHidden=\(controlItems.alwaysHidden.map { "\($0.windowID)" } ?? "nil")")
 
             await enforceControlItemOrder(controlItems: controlItems)
 
@@ -708,7 +704,7 @@ extension MenuBarItemManager {
                 controlItems: controlItems,
                 previousWindowIDs: previousWindowIDs
             ) {
-                logger.debug("Relocated new leftmost items; scheduling recache")
+                MenuBarItemManager.diagLog.debug("Relocated new leftmost items; scheduling recache")
                 Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(300))
                     await self?.cacheItemsRegardless(skipRecentMoveCheck: true)
@@ -717,7 +713,7 @@ extension MenuBarItemManager {
             }
 
             if await relocatePendingItems(items, controlItems: controlItems) {
-                logger.debug("Relocated pending temporarily-shown items; scheduling recache")
+                MenuBarItemManager.diagLog.debug("Relocated pending temporarily-shown items; scheduling recache")
                 Task { [weak self] in
                     try? await Task.sleep(for: .milliseconds(300))
                     await self?.cacheItemsRegardless(skipRecentMoveCheck: true)
@@ -726,7 +722,7 @@ extension MenuBarItemManager {
             }
 
             await uncheckedCacheItems(items: items, controlItems: controlItems, displayID: displayID)
-            diagLog.debug("cacheItemsRegardless: finished, cache now has \(self.itemCache.managedItems.count) managed items")
+            MenuBarItemManager.diagLog.debug("cacheItemsRegardless: finished, cache now has \(self.itemCache.managedItems.count) managed items")
         }
     }
 
@@ -740,7 +736,7 @@ extension MenuBarItemManager {
         let itemWindowIDs = Bridging.getMenuBarWindowList(option: [.itemsOnly, .activeSpace])
         let cachedIDs = await cacheActor.cachedItemWindowIDs
         if cachedIDs != itemWindowIDs {
-            diagLog.debug("cacheItemsIfNeeded: window IDs changed (\(cachedIDs.count) cached vs \(itemWindowIDs.count) current), triggering recache")
+            MenuBarItemManager.diagLog.debug("cacheItemsIfNeeded: window IDs changed (\(cachedIDs.count) cached vs \(itemWindowIDs.count) current), triggering recache")
             await cacheItemsRegardless(itemWindowIDs)
         }
     }
@@ -851,7 +847,7 @@ extension MenuBarItemManager {
     private nonisolated func waitForMoveOperationBuffer() async throws {
         if let timestamp = await lastMoveOperationTimestamp {
             let buffer = max(.milliseconds(25) - timestamp.duration(to: .now), .zero)
-            logger.debug("Move operation buffer: \(buffer)")
+            MenuBarItemManager.diagLog.debug("Move operation buffer: \(buffer)")
             do {
                 try await Task.sleep(for: buffer)
             } catch {
@@ -1353,8 +1349,8 @@ extension MenuBarItemManager {
 
             let targetDisplay = CGDisplayBounds(screen.displayID).contains(targetBounds.origin) ? screen.displayID : CGMainDisplayID()
             let itemDisplay = CGDisplayBounds(screen.displayID).contains(itemBounds.origin) ? screen.displayID : CGMainDisplayID()
-            logger.debug(
-                "Move clamp source=\(clampSource, privacy: .public) startX=\(start.x, privacy: .public) targetMinX=\(targetBounds.minX, privacy: .public) itemMinX=\(itemBounds.minX, privacy: .public) targetTag=\(destination.targetItem.tag, privacy: .public) itemTag=\(item.tag, privacy: .public) clampDisplay=\(screen.displayID, privacy: .public) targetDisplay=\(targetDisplay, privacy: .public) itemDisplay=\(itemDisplay, privacy: .public)"
+            MenuBarItemManager.diagLog.debug(
+                "Move clamp source=\(clampSource) startX=\(start.x) targetMinX=\(targetBounds.minX) itemMinX=\(itemBounds.minX) targetTag=\(destination.targetItem.tag) itemTag=\(item.tag) clampDisplay=\(screen.displayID) targetDisplay=\(targetDisplay) itemDisplay=\(itemDisplay)"
             )
         }
         return (start, end)
@@ -1408,10 +1404,10 @@ extension MenuBarItemManager {
         }
         do {
             let origin = try await timeoutTask.value
-            logger.debug(
+            MenuBarItemManager.diagLog.debug(
                 """
                 Item responded to events with new origin: \
-                \(String(describing: origin), privacy: .public)
+                \(String(describing: origin))
                 """
             )
             return origin
@@ -1434,7 +1430,7 @@ extension MenuBarItemManager {
         do {
             try await eventSemaphore.wait(timeout: .seconds(5))
         } catch is SimpleSemaphore.TimeoutError {
-            logger.error("eventSemaphore timed out in postMoveEvents, forcing signal and retrying")
+            MenuBarItemManager.diagLog.error("eventSemaphore timed out in postMoveEvents, forcing signal and retrying")
             await eventSemaphore.signal()
             throw EventError.cannotComplete
         }
@@ -1465,7 +1461,7 @@ extension MenuBarItemManager {
         }
 
         var timeout = getMoveOperationTimeout(for: item)
-        logger.debug("Move operation timeout: \(timeout)")
+        MenuBarItemManager.diagLog.debug("Move operation timeout: \(timeout)")
 
         lastMoveOperationTimestamp = .now
         MouseHelpers.hideCursor()
@@ -1501,7 +1497,7 @@ extension MenuBarItemManager {
             timeout -= timeout / 4
         } catch {
             do {
-                logger.warning("Move events failed, posting fallback")
+                MenuBarItemManager.diagLog.warning("Move events failed, posting fallback")
                 try await scrombleEvent(
                     mouseUp,
                     item: item,
@@ -1511,7 +1507,7 @@ extension MenuBarItemManager {
             } catch {
                 // Catch this for logging purposes only. We want to propagate
                 // the original error.
-                logger.error("Fallback failed with error: \(error, privacy: .public)")
+                MenuBarItemManager.diagLog.error("Fallback failed with error: \(error)")
             }
             timeout += timeout / 2
             throw error
@@ -1546,15 +1542,15 @@ extension MenuBarItemManager {
 
         try await waitForMoveOperationBuffer()
 
-        logger.log(
+        MenuBarItemManager.diagLog.info(
             """
-            Moving \(item.logString, privacy: .public) to \
-            \(destination.logString, privacy: .public)
+            Moving \(item.logString) to \
+            \(destination.logString)
             """
         )
 
         guard try await !itemHasCorrectPosition(item: item, for: destination) else {
-            logger.debug("Item has correct position, cancelling move")
+            MenuBarItemManager.diagLog.debug("Item has correct position, cancelling move")
             return
         }
 
@@ -1570,7 +1566,7 @@ extension MenuBarItemManager {
             }
             do {
                 if try await itemHasCorrectPosition(item: item, for: destination) {
-                    logger.debug("Item has correct position, finished with move")
+                    MenuBarItemManager.diagLog.debug("Item has correct position, finished with move")
                     return
                 }
                 try await postMoveEvents(item: item, destination: destination)
@@ -1578,16 +1574,16 @@ extension MenuBarItemManager {
                 // events may have been accepted but the item might not have
                 // landed at the exact destination.
                 if try await itemHasCorrectPosition(item: item, for: destination) {
-                    logger.debug("Attempt \(n, privacy: .public) succeeded and verified, finished with move")
+                    MenuBarItemManager.diagLog.debug("Attempt \(n) succeeded and verified, finished with move")
                     return
                 }
-                logger.debug("Attempt \(n, privacy: .public) events succeeded but item not at destination, retrying")
+                MenuBarItemManager.diagLog.debug("Attempt \(n) events succeeded but item not at destination, retrying")
                 if n < maxAttempts {
                     try await waitForMoveOperationBuffer()
                     continue
                 }
             } catch {
-                logger.debug("Attempt \(n, privacy: .public) failed: \(error, privacy: .public)")
+                MenuBarItemManager.diagLog.debug("Attempt \(n) failed: \(error)")
                 if n < maxAttempts {
                     try await waitForMoveOperationBuffer()
                     continue
@@ -1625,7 +1621,7 @@ extension MenuBarItemManager {
         do {
             try await eventSemaphore.wait(timeout: .seconds(5))
         } catch is SimpleSemaphore.TimeoutError {
-            logger.error("eventSemaphore timed out in postClickEvents, forcing signal and retrying")
+            MenuBarItemManager.diagLog.error("eventSemaphore timed out in postClickEvents, forcing signal and retrying")
             await eventSemaphore.signal()
             throw EventError.cannotComplete
         }
@@ -1677,7 +1673,7 @@ extension MenuBarItemManager {
             )
         } catch {
             do {
-                logger.warning("Click events failed, posting fallback")
+                MenuBarItemManager.diagLog.warning("Click events failed, posting fallback")
                 try await postEventWithBarrier(
                     mouseUp,
                     to: item,
@@ -1687,7 +1683,7 @@ extension MenuBarItemManager {
             } catch {
                 // Catch this for logging purposes only. We want to propagate
                 // the original error.
-                logger.error("Fallback failed with error: \(error, privacy: .public)")
+                MenuBarItemManager.diagLog.error("Fallback failed with error: \(error)")
             }
             throw error
         }
@@ -1705,10 +1701,10 @@ extension MenuBarItemManager {
 
         try await waitForUserToPauseInput()
 
-        logger.log(
+        MenuBarItemManager.diagLog.info(
             """
-            Clicking \(item.logString, privacy: .public) with \
-            \(mouseButton.logString, privacy: .public)
+            Clicking \(item.logString) with \
+            \(mouseButton.logString)
             """
         )
 
@@ -1724,10 +1720,10 @@ extension MenuBarItemManager {
             }
             do {
                 try await postClickEvents(item: item, mouseButton: mouseButton)
-                logger.debug("Attempt \(n, privacy: .public) succeeded, finished with click")
+                MenuBarItemManager.diagLog.debug("Attempt \(n) succeeded, finished with click")
                 return
             } catch {
-                logger.debug("Attempt \(n, privacy: .public) failed: \(error, privacy: .public)")
+                MenuBarItemManager.diagLog.debug("Attempt \(n) failed: \(error)")
                 if n < maxAttempts {
                     await eventSleep()
                     continue
@@ -1913,7 +1909,7 @@ extension MenuBarItemManager {
             return
         }
         let interval = interval ?? appState.settings.advanced.tempShowInterval
-        logger.debug("Running rehide timer for interval: \(interval, format: .fixed, privacy: .public)")
+        MenuBarItemManager.diagLog.debug("Running rehide timer for interval: \(interval)")
         rehideTimer?.invalidate()
         rehideCancellable?.cancel()
         rehideTimer = .scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] timer in
@@ -1921,7 +1917,7 @@ extension MenuBarItemManager {
                 timer.invalidate()
                 return
             }
-            logger.debug("Rehide timer fired")
+            MenuBarItemManager.diagLog.debug("Rehide timer fired")
             Task {
                 await self.rehideTemporarilyShownItems()
             }
@@ -1945,7 +1941,7 @@ extension MenuBarItemManager {
     ///   - mouseButton: The mouse button to click the item with.
     func temporarilyShow(item: MenuBarItem, clickingWith mouseButton: CGMouseButton) async {
         guard let appState else {
-            logger.error("Missing AppState, so not showing \(item.logString, privacy: .public)")
+            MenuBarItemManager.diagLog.error("Missing AppState, so not showing \(item.logString)")
             return
         }
 
@@ -1977,7 +1973,7 @@ extension MenuBarItemManager {
         let items = await MenuBarItem.getMenuBarItems(option: .activeSpace)
 
         guard let returnInfo = getReturnDestination(for: item, in: items) else {
-            logger.error("No return destination for \(item.logString, privacy: .public)")
+            MenuBarItemManager.diagLog.error("No return destination for \(item.logString)")
             return
         }
 
@@ -1988,7 +1984,7 @@ extension MenuBarItemManager {
 
         // If we couldn't find any anchor, bail gracefully.
         guard let anchor = targetItem else {
-            logger.warning("Not enough room or no anchor to show \(item.logString, privacy: .public)")
+            MenuBarItemManager.diagLog.warning("Not enough room or no anchor to show \(item.logString)")
             let alert = NSAlert()
             alert.messageText = String(localized: "Not enough room to show \"\(item.displayName)\"")
             alert.runModal()
@@ -2009,12 +2005,12 @@ extension MenuBarItemManager {
             appState.hidEventManager.startAll()
         }
 
-        logger.debug("Temporarily showing \(item.logString, privacy: .public)")
+        MenuBarItemManager.diagLog.debug("Temporarily showing \(item.logString)")
 
         do {
             try await move(item: item, to: moveDestination, skipInputPause: true)
         } catch {
-            logger.error("Error showing item: \(error, privacy: .public)")
+            MenuBarItemManager.diagLog.error("Error showing item: \(error)")
             pendingRelocations.removeValue(forKey: tagIdentifier)
             persistPendingRelocations()
             return
@@ -2056,7 +2052,7 @@ extension MenuBarItemManager {
         do {
             try await click(item: clickItem, with: mouseButton)
         } catch {
-            logger.error("Error clicking item: \(error, privacy: .public)")
+            MenuBarItemManager.diagLog.error("Error clicking item: \(error)")
             return
         }
 
@@ -2117,7 +2113,7 @@ extension MenuBarItemManager {
         }
 
         // 3. Fallback: use the control item for the original section.
-        diagLog.debug(
+        MenuBarItemManager.diagLog.debug(
             """
             Return destination neighbors not found for \(context.tag); \
             falling back to section-level destination for \(context.originalSection.logString)
@@ -2142,7 +2138,7 @@ extension MenuBarItemManager {
             return nil
         }
 
-        diagLog.error("No control items found to resolve return destination for \(context.tag)")
+        MenuBarItemManager.diagLog.error("No control items found to resolve return destination for \(context.tag)")
         return nil
     }
 
@@ -2156,7 +2152,7 @@ extension MenuBarItemManager {
     ///   user-input guards and rehide all items immediately.
     func rehideTemporarilyShownItems(force: Bool = false) async {
         guard let appState else {
-            logger.error("Missing AppState, so not rehiding")
+            MenuBarItemManager.diagLog.error("Missing AppState, so not rehiding")
             return
         }
         guard !temporarilyShownItemContexts.isEmpty else {
@@ -2164,12 +2160,12 @@ extension MenuBarItemManager {
         }
         if !force {
             guard !temporarilyShownItemContexts.contains(where: { $0.isShowingInterface }) else {
-                logger.debug("Menu bar item interface is shown, so waiting to rehide")
+                MenuBarItemManager.diagLog.debug("Menu bar item interface is shown, so waiting to rehide")
                 runRehideTimer(for: 3)
                 return
             }
             guard hasUserPausedInput(for: .milliseconds(250)) else {
-                logger.debug("Found recent user input, so waiting to rehide")
+                MenuBarItemManager.diagLog.debug("Found recent user input, so waiting to rehide")
                 runRehideTimer(for: 1)
                 return
             }
@@ -2188,7 +2184,7 @@ extension MenuBarItemManager {
 
         await eventSleep(for: .milliseconds(250))
 
-        logger.debug("Rehiding temporarily shown items")
+        MenuBarItemManager.diagLog.debug("Rehiding temporarily shown items")
 
         MouseHelpers.hideCursor()
         defer {
@@ -2198,10 +2194,10 @@ extension MenuBarItemManager {
         while let context = currentContexts.popLast() {
             guard let item = items.first(matching: context.tag) else {
                 context.notFoundAttempts += 1
-                logger.debug(
+                MenuBarItemManager.diagLog.debug(
                     """
-                    Missing temporarily shown item \(context.tag, privacy: .public) on active space \
-                    (not-found attempt \(context.notFoundAttempts, privacy: .public)); will retry
+                    Missing temporarily shown item \(context.tag) on active space \
+                    (not-found attempt \(context.notFoundAttempts)); will retry
                     """
                 )
                 // Keep the context for retry — the item may be on another
@@ -2212,7 +2208,7 @@ extension MenuBarItemManager {
                 if context.notFoundAttempts < 10 {
                     failedContexts.append(context)
                 } else {
-                    diagLog.warning(
+                    MenuBarItemManager.diagLog.warning(
                         """
                         Giving up in-memory retry for \(context.tag) after \
                         \(context.notFoundAttempts) not-found attempts; \
@@ -2225,7 +2221,7 @@ extension MenuBarItemManager {
 
             // Resolve the best return destination using fresh items.
             guard let destination = resolveReturnDestination(for: context, in: items) else {
-                diagLog.error(
+                MenuBarItemManager.diagLog.error(
                     """
                     Could not resolve return destination for \(item.logString); \
                     item will remain in visible section until next cache cycle handles pendingRelocations
@@ -2242,11 +2238,11 @@ extension MenuBarItemManager {
                 pendingRelocations.removeValue(forKey: tagIdentifier)
             } catch {
                 context.rehideAttempts += 1
-                logger.warning(
+                MenuBarItemManager.diagLog.warning(
                     """
-                    Attempt \(context.rehideAttempts, privacy: .public) to rehide \
-                    \(item.logString, privacy: .public) failed with error: \
-                    \(error, privacy: .public)
+                    Attempt \(context.rehideAttempts) to rehide \
+                    \(item.logString) failed with error: \
+                    \(error)
                     """
                 )
                 if context.rehideAttempts < 3 {
@@ -2265,12 +2261,12 @@ extension MenuBarItemManager {
         // If force-hiding, we don't want to re-queue them for long delays.
         // We want them back in the section immediately or kept in context.
         if failedContexts.isEmpty {
-            logger.debug("All items were successfully rehidden")
+            MenuBarItemManager.diagLog.debug("All items were successfully rehidden")
         } else {
-            logger.error(
+            MenuBarItemManager.diagLog.error(
                 """
                 Some items failed to rehide; keeping in context for retry: \
-                \(failedContexts.map { $0.tag }, privacy: .public)
+                \(failedContexts.map { $0.tag })
                 """
             )
             temporarilyShownItemContexts.append(contentsOf: failedContexts.reversed())
@@ -2284,10 +2280,10 @@ extension MenuBarItemManager {
     /// the item is _not_ returned to its original location.
     func removeTemporarilyShownItemFromCache(with tag: MenuBarItemTag) {
         while let index = temporarilyShownItemContexts.firstIndex(where: { $0.tag == tag }) {
-            logger.debug(
+            MenuBarItemManager.diagLog.debug(
                 """
                 Removing temporarily shown item from cache: \
-                \(tag, privacy: .public)
+                \(tag)
                 """
             )
             temporarilyShownItemContexts.remove(at: index)
@@ -2369,7 +2365,7 @@ extension MenuBarItemManager {
         // newness check needed since these items should never be in a hidden
         // section.
         if let systemItem = leftmostItems.first(where: { !$0.canBeHidden }) {
-            diagLog.info("Relocating non-hideable system item \(systemItem.logString) to visible section")
+            MenuBarItemManager.diagLog.info("Relocating non-hideable system item \(systemItem.logString) to visible section")
             do {
                 try await move(
                     item: systemItem,
@@ -2377,7 +2373,7 @@ extension MenuBarItemManager {
                     skipInputPause: true
                 )
             } catch {
-                diagLog.error("Failed to relocate system item \(systemItem.logString): \(error)")
+                MenuBarItemManager.diagLog.error("Failed to relocate system item \(systemItem.logString): \(error)")
                 return false
             }
             return true
@@ -2411,7 +2407,7 @@ extension MenuBarItemManager {
                 skipInputPause: true
             )
         } catch {
-            logger.error("Failed to relocate \(candidate.logString, privacy: .public): \(error, privacy: .public)")
+            MenuBarItemManager.diagLog.error("Failed to relocate \(candidate.logString): \(error)")
             return false
         }
 
@@ -2489,10 +2485,10 @@ extension MenuBarItemManager {
                 continue
             }
 
-            logger.info(
+            MenuBarItemManager.diagLog.info(
                 """
-                Relocating \(item.logString, privacy: .public) back to \
-                \(targetSection.logString, privacy: .public) after app relaunch
+                Relocating \(item.logString) back to \
+                \(targetSection.logString) after app relaunch
                 """
             )
 
@@ -2501,10 +2497,10 @@ extension MenuBarItemManager {
                 pendingRelocations.removeValue(forKey: tagIdentifier)
                 didRelocate = true
             } catch {
-                logger.error(
+                MenuBarItemManager.diagLog.error(
                     """
-                    Failed to relocate \(item.logString, privacy: .public) back to \
-                    \(targetSection.logString, privacy: .public): \(error, privacy: .public)
+                    Failed to relocate \(item.logString) back to \
+                    \(targetSection.logString): \(error)
                     """
                 )
             }
@@ -2533,10 +2529,10 @@ extension MenuBarItemManager {
         }
 
         do {
-            logger.debug("Control items have incorrect order")
+            MenuBarItemManager.diagLog.debug("Control items have incorrect order")
             try await move(item: alwaysHidden, to: .leftOfItem(hidden), skipInputPause: true)
         } catch {
-            logger.error("Error enforcing control item order: \(error, privacy: .public)")
+            MenuBarItemManager.diagLog.error("Error enforcing control item order: \(error)")
         }
     }
 
@@ -2550,24 +2546,24 @@ extension MenuBarItemManager {
         // Get all on-screen windows.
         let windows = WindowInfo.createWindows(option: .onScreen)
 
-        logger.debug("Checking for open menus - Found \(items.count) menu bar items with PIDs: \(sourcePIDs)")
+        MenuBarItemManager.diagLog.debug("Checking for open menus - Found \(items.count) menu bar items with PIDs: \(sourcePIDs)")
 
         // Check if any of the items' owning applications have a menu-related window.
         let result = windows.contains { window in
             // Skip Control Center windows as they can be falsely detected when hovering
             guard window.owningApplication?.bundleIdentifier != MenuBarItemTag.Namespace.controlCenter.description else {
-                logger.debug("Skipping Control Center window: PID \(window.ownerPID), title: \(window.title ?? "nil")")
+                MenuBarItemManager.diagLog.debug("Skipping Control Center window: PID \(window.ownerPID), title: \(window.title ?? "nil")")
                 return false
             }
 
             let isMenuOpen = sourcePIDs.contains(window.ownerPID) && window.isMenuRelated && (window.title?.isEmpty ?? true)
             if isMenuOpen {
-                logger.debug("Found open menu window: PID \(window.ownerPID), owner: \(window.ownerName as NSObject?), title: \(window.title ?? "nil"), isMenuRelated: \(window.isMenuRelated)")
+                MenuBarItemManager.diagLog.debug("Found open menu window: PID \(window.ownerPID), owner: \(window.ownerName as NSObject?), title: \(window.title ?? "nil"), isMenuRelated: \(window.isMenuRelated)")
             }
             return isMenuOpen
         }
 
-        logger.debug("Menu open check result: \(result)")
+        MenuBarItemManager.diagLog.debug("Menu open check result: \(result)")
         return result
     }
 }
@@ -2682,7 +2678,7 @@ extension MenuBarItemManager {
     ///
     /// - Returns: The number of items that failed to move.
     func resetLayoutToFreshState() async throws -> Int {
-        logger.info("Resetting menu bar layout to fresh state")
+        MenuBarItemManager.diagLog.info("Resetting menu bar layout to fresh state")
 
         guard let appState else {
             throw LayoutResetError.missingAppState
@@ -2719,7 +2715,7 @@ extension MenuBarItemManager {
             hiddenControlItemWindowID: hiddenWID,
             alwaysHiddenControlItemWindowID: alwaysHiddenWID
         ) else {
-            logger.error("Layout reset aborted: missing hidden section control item")
+            MenuBarItemManager.diagLog.error("Layout reset aborted: missing hidden section control item")
 
             // Attempt a forced restore by re-enabling the always hidden section flag and
             // nudging macOS to recreate control items, then retry once.
@@ -2735,7 +2731,7 @@ extension MenuBarItemManager {
                     hiddenControlItemWindowID: hiddenWID,
                     alwaysHiddenControlItemWindowID: alwaysHiddenWID
                 ) {
-                    logger.info("Recovered hidden section control item after re-enabling always-hidden section")
+                    MenuBarItemManager.diagLog.info("Recovered hidden section control item after re-enabling always-hidden section")
                     return try await resetLayoutWithControlItems(controlItems: retryControlItems, items: items)
                 }
             }
@@ -2778,7 +2774,7 @@ extension MenuBarItemManager {
                     )
                 } catch {
                     failed += 1
-                    logger.error("Failed to move \(item.logString, privacy: .public) during layout reset: \(error, privacy: .public)")
+                    MenuBarItemManager.diagLog.error("Failed to move \(item.logString) during layout reset: \(error)")
                 }
             }
             return failed
@@ -2834,7 +2830,7 @@ extension MenuBarItemManager {
                 return false
             }
             if !notYetInHidden.isEmpty {
-                logger.debug("Layout reset pass 2: \(notYetInHidden.count) items not yet in hidden section")
+                MenuBarItemManager.diagLog.debug("Layout reset pass 2: \(notYetInHidden.count) items not yet in hidden section")
                 failedMoves = await movePass(notYetInHidden, anchor: refreshedControls.hidden)
             }
         }
@@ -2980,10 +2976,10 @@ private extension CGEvent {
     /// - Parameter location: The event tap location to post the event to.
     func post(to location: EventTap.Location) {
         let type = self.type
-        Logger.menuBarItemManager.debug(
+        MenuBarItemManager.diagLog.debug(
             """
-            Posting \(type.logString, privacy: .public) \
-            to \(location.logString, privacy: .public)
+            Posting \(type.logString) \
+            to \(location.logString)
             """
         )
         switch location {
@@ -3037,11 +3033,4 @@ private extension CGEvent {
             setIntegerValueField(.mouseEventClickState, value: subtype.clickState)
         }
     }
-}
-
-// MARK: - Logger Helpers
-
-private extension Logger {
-    /// Logger for the menu bar item manager.
-    static let menuBarItemManager = Logger(category: "MenuBarItemManager")
 }

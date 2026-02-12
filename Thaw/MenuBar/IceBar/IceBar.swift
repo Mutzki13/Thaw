@@ -7,12 +7,12 @@
 //  Licensed under the GNU GPLv3
 
 import Combine
-import OSLog
 import SwiftUI
 
 // MARK: - IceBarPanel
 
 final class IceBarPanel: NSPanel {
+    private let diagLog = DiagLog(category: "IceBarPanel")
     /// The shared app state.
     private weak var appState: AppState?
 
@@ -156,7 +156,7 @@ final class IceBarPanel: NSPanel {
         do {
             try await cacheTask.value
         } catch {
-            Logger.default.error("Cache update failed when showing \(Constants.displayName)BarPanel - \(error)")
+            diagLog.error("Cache update failed when showing \(Constants.displayName)BarPanel - \(error)")
         }
 
         contentView = IceBarHostingView(

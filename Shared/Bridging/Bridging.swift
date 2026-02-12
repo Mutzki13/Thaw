@@ -7,13 +7,11 @@
 //  Licensed under the GNU GPLv3
 
 import Cocoa
-import OSLog
 
 // MARK: - Bridging
 
 /// A namespace for bridged or wrapped APIs.
 enum Bridging {
-    private static let logger = Logger(category: "Bridging")
     private static let diagLog = DiagLog(category: "Bridging")
 }
 
@@ -51,7 +49,7 @@ extension Bridging {
             &value
         )
         if result != .success {
-            logger.error("CGSCopyConnectionProperty failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSCopyConnectionProperty failed with error \(result.logString)")
         }
         return value?.takeRetainedValue()
     }
@@ -70,7 +68,7 @@ extension Bridging {
             value as CFTypeRef
         )
         if result != .success {
-            logger.error("CGSSetConnectionProperty failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSSetConnectionProperty failed with error \(result.logString)")
         }
     }
 }
@@ -84,7 +82,7 @@ extension Bridging {
         var count: UInt32 = 0
         let result = CGGetActiveDisplayList(0, nil, &count)
         guard result == .success else {
-            logger.error("CGGetActiveDisplayList failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGGetActiveDisplayList failed with error \(result.logString)")
             return nil
         }
         return count
@@ -97,7 +95,7 @@ extension Bridging {
         var list = [CGDirectDisplayID](repeating: 0, count: Int(count))
         let result = CGGetActiveDisplayList(count, &list, nil)
         guard result == .success else {
-            logger.error("CGGetActiveDisplayList failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGGetActiveDisplayList failed with error \(result.logString)")
             return []
         }
         return list
@@ -105,7 +103,7 @@ extension Bridging {
 
     private static func getDisplayUUID(for displayID: CGDirectDisplayID) -> CFUUID? {
         guard let uuid = CGDisplayCreateUUIDFromDisplayID(displayID) else {
-            logger.error("CGDisplayCreateUUIDFromDisplayID returned nil for display \(displayID, privacy: .public)")
+            diagLog.error("CGDisplayCreateUUIDFromDisplayID returned nil for display \(displayID)")
             return nil
         }
         return uuid.takeRetainedValue()
@@ -176,7 +174,7 @@ extension Bridging {
         var psn = ProcessSerialNumber()
         let result = GetProcessForPID(pid, &psn)
         guard result == noErr else {
-            logger.error("GetProcessForPID failed with error \(result, privacy: .public)")
+            diagLog.error("GetProcessForPID failed with error \(result)")
             return false
         }
         return CGSEventIsAppUnresponsive(getMainConnection(), &psn)
@@ -188,7 +186,7 @@ extension Bridging {
     static func setProcessUnresponsiveTimeout(_ timeout: TimeInterval) {
         let result = CGSEventSetAppIsUnresponsiveNotificationTimeout(getMainConnection(), timeout)
         if result != .success {
-            logger.error("CGSEventSetAppIsUnresponsiveNotificationTimeout failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSEventSetAppIsUnresponsiveNotificationTimeout failed with error \(result.logString)")
         }
     }
 }
@@ -210,7 +208,7 @@ extension Bridging {
             return nil
         }
         guard let uuidString = CFUUIDCreateString(nil, uuid) else {
-            logger.error("CFUUIDCreateString returned nil for display \(displayID, privacy: .public)")
+            diagLog.error("CFUUIDCreateString returned nil for display \(displayID)")
             return nil
         }
         return CGSManagedDisplayGetCurrentSpace(getMainConnection(), uuidString)
@@ -226,11 +224,11 @@ extension Bridging {
     static func getSpaceList(for windowID: CGWindowID, visibleSpacesOnly: Bool = false) -> [CGSSpaceID] {
         let mask: CGSSpaceMask = visibleSpacesOnly ? .allVisibleSpacesMask : .allSpacesMask
         guard let spaces = CGSCopySpacesForWindows(getMainConnection(), mask, [windowID] as CFArray) else {
-            logger.error("CGSCopySpacesForWindows returned nil")
+            diagLog.error("CGSCopySpacesForWindows returned nil")
             return []
         }
         guard let list = spaces.takeRetainedValue() as? [CGSSpaceID] else {
-            logger.error("CGSCopySpacesForWindows returned array of unexpected type")
+            diagLog.error("CGSCopySpacesForWindows returned array of unexpected type")
             return []
         }
         return list
@@ -256,7 +254,7 @@ extension Bridging {
         var bounds = CGRect.zero
         let result = CGSGetScreenRectForWindow(getConnectionForThread(), windowID, &bounds)
         guard result == .success else {
-            logger.error("CGSGetScreenRectForWindow failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetScreenRectForWindow failed with error \(result.logString)")
             return nil
         }
         return bounds
@@ -269,7 +267,7 @@ extension Bridging {
         var level: CGWindowLevel = 0
         let result = CGSGetWindowLevel(getMainConnection(), windowID, &level)
         guard result == .success else {
-            logger.error("CGSGetWindowLevel failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetWindowLevel failed with error \(result.logString)")
             return nil
         }
         return level
@@ -339,7 +337,7 @@ extension Bridging {
         var count: Int32 = 0
         let result = CGSGetWindowCount(getMainConnection(), nullConnection, &count)
         guard result == .success else {
-            logger.error("CGSGetWindowCount failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetWindowCount failed with error \(result.logString)")
             return nil
         }
         return count
@@ -349,7 +347,7 @@ extension Bridging {
         var count: Int32 = 0
         let result = CGSGetOnScreenWindowCount(getMainConnection(), nullConnection, &count)
         guard result == .success else {
-            logger.error("CGSGetOnScreenWindowCount failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetOnScreenWindowCount failed with error \(result.logString)")
             return nil
         }
         return count
@@ -362,7 +360,7 @@ extension Bridging {
         var list = [CGWindowID](repeating: 0, count: Int(count))
         let result = CGSGetWindowList(getMainConnection(), nullConnection, count, &list, &count)
         guard result == .success else {
-            logger.error("CGSGetWindowList failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetWindowList failed with error \(result.logString)")
             return []
         }
         return [CGWindowID](list[..<Int(count)])
@@ -375,7 +373,7 @@ extension Bridging {
         var list = [CGWindowID](repeating: 0, count: Int(count))
         let result = CGSGetOnScreenWindowList(getMainConnection(), nullConnection, count, &list, &count)
         guard result == .success else {
-            logger.error("CGSGetOnScreenWindowList failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetOnScreenWindowList failed with error \(result.logString)")
             return []
         }
         return [CGWindowID](list[..<Int(count)])
@@ -390,7 +388,7 @@ extension Bridging {
         var list = [CGWindowID](repeating: 0, count: Int(count))
         let result = CGSGetProcessMenuBarWindowList(getMainConnection(), nullConnection, count, &list, &count)
         guard result == .success else {
-            logger.error("CGSGetProcessMenuBarWindowList failed with error \(result.logString, privacy: .public)")
+            diagLog.error("CGSGetProcessMenuBarWindowList failed with error \(result.logString)")
             return []
         }
         let windowList = [CGWindowID](list[..<Int(count)])

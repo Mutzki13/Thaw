@@ -6,11 +6,11 @@
 //  Copyright (Thaw) © 2026 Toni Förster
 //  Licensed under the GNU GPLv3
 
-import OSLog
 import XPC
 
 /// A wrapper around an XPC listener object.
 final class Listener {
+    private let diagLog = DiagLog(category: "Listener")
     /// The shared listener.
     static let shared = Listener()
 
@@ -33,16 +33,16 @@ final class Listener {
             let request = try message.decode(as: MenuBarItemService.Request.self)
             switch request {
             case .start:
-                Logger.default.debug("Listener received start request")
+                diagLog.debug("Listener received start request")
                 return .start
             case let .sourcePID(window):
-                Logger.default.debug("Listener: sourcePID request for windowID=\(window.windowID) title=\(window.title ?? "nil", privacy: .public)")
+                diagLog.debug("Listener: sourcePID request for windowID=\(window.windowID) title=\(window.title ?? "nil")")
                 let pid = SourcePIDCache.shared.pid(for: window)
-                Logger.default.debug("Listener: sourcePID response for windowID=\(window.windowID) -> pid=\(pid.map { "\($0)" } ?? "nil", privacy: .public)")
+                diagLog.debug("Listener: sourcePID response for windowID=\(window.windowID) -> pid=\(pid.map { "\($0)" } ?? "nil")")
                 return .sourcePID(pid)
             }
         } catch {
-            Logger.default.error("Listener failed to handle message with error \(error)")
+            diagLog.error("Listener failed to handle message with error \(error)")
             return nil
         }
     }
@@ -71,11 +71,11 @@ final class Listener {
     /// Activates the listener.
     func activate() {
         guard listener == nil else {
-            Logger.default.notice("Listener is already active")
+            diagLog.notice("Listener is already active")
             return
         }
 
-        Logger.default.debug("Activating listener")
+        diagLog.debug("Activating listener")
 
         do {
             if #available(macOS 26.0, *) {
@@ -84,13 +84,13 @@ final class Listener {
                 try uncheckedActivate()
             }
         } catch {
-            Logger.default.error("Failed to activate listener with error \(error)")
+            diagLog.error("Failed to activate listener with error \(error)")
         }
     }
 
     /// Cancels the listener.
     func cancel() {
-        Logger.default.debug("Canceling listener")
+        diagLog.debug("Canceling listener")
         listener.take()?.cancel()
     }
 }
