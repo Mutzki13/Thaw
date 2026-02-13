@@ -189,11 +189,13 @@ final class MenuBarItemImageCache: ObservableObject {
                 }
 
                 if !loadedImages.isEmpty {
+                    let imagesToLoad = loadedImages
+                    let loadedCount = loadedImages.count
                     await MainActor.run {
-                        for (tag, image) in loadedImages {
+                        for (tag, image) in imagesToLoad {
                             self.images[tag] = image
                         }
-                        MenuBarItemImageCache.diagLog.debug("Loaded \(loadedImages.count) images from disk cache (\(Int(cacheAge))s old)")
+                        MenuBarItemImageCache.diagLog.debug("Loaded \(loadedCount) images from disk cache (\(Int(cacheAge))s old)")
                     }
                 }
             } catch {
