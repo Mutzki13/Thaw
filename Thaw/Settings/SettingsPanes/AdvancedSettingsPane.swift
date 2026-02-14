@@ -38,7 +38,6 @@ struct AdvancedSettingsPane: View {
                 hideApplicationMenus
                 enableSecondaryContextMenu
                 showOnHoverDelay
-                tempShowInterval
             }
             IceSection("Permissions") {
                 allPermissions
@@ -121,24 +120,6 @@ struct AdvancedSettingsPane: View {
                 }
         }
         .annotation("The amount of time to wait before showing on hover.")
-    }
-
-    private var tempShowInterval: some View {
-        LabeledContent {
-            IceSlider(
-                formattedToSeconds(settings.tempShowInterval),
-                value: $settings.tempShowInterval,
-                in: 0 ... 60,
-                step: 1
-            )
-        } label: {
-            Text("Temporarily shown item delay")
-                .frame(minWidth: maxSliderLabelWidth, alignment: .leading)
-                .onFrameChange { frame in
-                    maxSliderLabelWidth = max(maxSliderLabelWidth, frame.width)
-                }
-        }
-        .annotation("The amount of time to wait before hiding temporarily shown menu bar items.")
     }
 
     private var diagnosticLogging: some View {

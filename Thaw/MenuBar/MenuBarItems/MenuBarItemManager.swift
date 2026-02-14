@@ -1886,7 +1886,7 @@ extension MenuBarItemManager {
         guard let appState else {
             return
         }
-        let interval = interval ?? appState.settings.advanced.tempShowInterval
+        let interval = interval ?? 15
         MenuBarItemManager.diagLog.debug("Running rehide timer for interval: \(interval)")
         rehideTimer?.invalidate()
         rehideCancellable?.cancel()
@@ -1911,8 +1911,10 @@ extension MenuBarItemManager {
 
     /// Temporarily shows the given item.
     ///
-    /// The item is cached and returned to its original location after the
-    /// time interval specified by ``AdvancedSettings/tempShowInterval``.
+    /// The item is cached and returned to its original location after approximately
+    /// 15 seconds, though it may be sooner (e.g., when switching apps) or later
+    /// due to the smart rehide logic (e.g., +1s for recent user input, +3s when
+    /// a menu is open).
     ///
     /// - Parameters:
     ///   - item: The item to temporarily show.
