@@ -10533,7 +10533,15 @@
       }
     },
     "Use %@ Bar only on displays with a notch. On other displays, show icons in the menu bar." : {
-      "comment" : "A toggle that allows the user to choose whether to only show the Thaw Bar on displays with a notch."
+      "comment" : "A toggle that allows the user to choose whether to only show the Thaw Bar on displays with a notch.",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-Leiste nur auf Bildschirmen mit Notch verwenden. Auf anderen Bildschirmen Symbole in der Menüleiste anzeigen."
+          }
+        }
+      }
     },
     "Use dynamic appearance" : {
       "comment" : "A toggle that lets the user choose whether to use different appearance settings based on the current system appearance.",
@@ -10596,7 +10604,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Eingerückte Form bei Bildschirmen mit Noch verwenden"
+            "value" : "Eingerückte Form bei Bildschirmen mit Notch verwenden"
           }
         },
         "es" : {
