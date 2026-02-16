@@ -833,7 +833,7 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lldsecondo"
+                  "value" : "%lld secondo"
                 }
               },
               "other" : {
