@@ -6948,8 +6948,8 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Solo en pantallas con notch"
-         }
-       },
+          }
+        },
         "id" : {
           "stringUnit" : {
             "state" : "translated",
@@ -6960,6 +6960,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "노치가 있는 디스플레이에서만 가능합니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在带刘海的显示器上"
           }
         },
         "zh-Hant" : {
@@ -10655,7 +10661,7 @@
             "value" : "Usa %@ Bar solo en pantallas con notch. En otras pantallas, muestra los íconos en la barra de menús."
           }
         },
-		"id" : {
+        "id" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Gunakan Bar %@ hanya di layar dengan notch. Di layar lain, tampilkan ikon di bar menu."
@@ -10665,6 +10671,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ 바는 노치가 있는 디스플레이에서만 사용됩니다. 다른 디스플레이에서는 메뉴 막대에 아이콘이 표시됩니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅在带有刘海的显示器上使用 %@ 栏。在其他显示器上，请在菜单栏中显示图标。"
           }
         },
         "zh-Hant" : {
