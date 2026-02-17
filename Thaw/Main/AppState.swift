@@ -379,17 +379,10 @@ final class AppState: ObservableObject {
 
     /// Returns a publisher for the window with the given identifier.
     func publisherForWindow(_ id: IceWindowIdentifier) -> some Publisher<NSWindow?, Never> {
-        NSApp.publisher(for: \.windows).mergeMap { window in
-            window.publisher(for: \.identifier)
-                .map { [weak window] identifier in
-                    guard identifier?.rawValue == id.rawValue else {
-                        return nil
-                    }
-                    return window
-                }
-                .first { $0 != nil }
-                .replaceEmpty(with: nil)
-        }
+        NSApp.publisher(for: \.windows)
+            .map { windows in
+                windows.first { $0.identifier?.rawValue == id.rawValue }
+            }
     }
 
     /// Opens the window with the given identifier.
