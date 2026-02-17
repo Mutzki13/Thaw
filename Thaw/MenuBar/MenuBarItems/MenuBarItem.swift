@@ -337,7 +337,7 @@ extension MenuBarItem: Equatable {
             lhs.windowID == rhs.windowID &&
             lhs.ownerPID == rhs.ownerPID &&
             lhs.sourcePID == rhs.sourcePID &&
-            NSStringFromRect(lhs.bounds) == NSStringFromRect(rhs.bounds) &&
+            lhs.bounds == rhs.bounds &&
             lhs.title == rhs.title &&
             lhs.isOnScreen == rhs.isOnScreen
     }
@@ -351,7 +351,10 @@ extension MenuBarItem: Hashable {
         hasher.combine(windowID)
         hasher.combine(ownerPID)
         hasher.combine(sourcePID)
-        hasher.combine(NSStringFromRect(bounds))
+        hasher.combine(bounds.origin.x)
+        hasher.combine(bounds.origin.y)
+        hasher.combine(bounds.size.width)
+        hasher.combine(bounds.size.height)
         hasher.combine(title)
         hasher.combine(isOnScreen)
     }
