@@ -163,7 +163,7 @@ final class MenuBarSection {
     }
 
     /// Shows the section.
-    func show() {
+    func show(triggeredByHotkey: Bool = false) {
         guard let menuBarManager, isHidden else {
             return
         }
@@ -193,9 +193,17 @@ final class MenuBarSection {
                 Task {
                     switch name {
                     case .visible, .hidden:
-                        await menuBarManager.iceBarPanel.show(section: .hidden, on: screen)
+                        await menuBarManager.iceBarPanel.show(
+                            section: .hidden,
+                            on: screen,
+                            triggeredByHotkey: triggeredByHotkey
+                        )
                     case .alwaysHidden:
-                        await menuBarManager.iceBarPanel.show(section: .alwaysHidden, on: screen)
+                        await menuBarManager.iceBarPanel.show(
+                            section: .alwaysHidden,
+                            on: screen,
+                            triggeredByHotkey: triggeredByHotkey
+                        )
                     }
                     startRehideChecks()
                 }
@@ -244,8 +252,12 @@ final class MenuBarSection {
     }
 
     /// Toggles the visibility of the section.
-    func toggle() {
-        if isHidden { show() } else { hide() }
+    func toggle(triggeredByHotkey: Bool = false) {
+        if isHidden {
+            show(triggeredByHotkey: triggeredByHotkey)
+        } else {
+            hide()
+        }
     }
 
     /// Returns `true` when the mouse cursor is inside the menu bar or the

@@ -42,11 +42,13 @@ final class MenuBarItemImageCache: ObservableObject {
             if old.cgImage === new.cgImage { return true }
             guard old.scale == new.scale,
                   old.cgImage.width == new.cgImage.width,
-                  old.cgImage.height == new.cgImage.height else {
+                  old.cgImage.height == new.cgImage.height
+            else {
                 return false
             }
             guard let oldData = old.cgImage.dataProvider?.data,
-                  let newData = new.cgImage.dataProvider?.data else {
+                  let newData = new.cgImage.dataProvider?.data
+            else {
                 return false
             }
             return oldData == newData

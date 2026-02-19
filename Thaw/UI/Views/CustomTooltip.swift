@@ -148,6 +148,10 @@ final class CustomTooltipController {
         self.view = view
     }
 
+    deinit {
+        cancel()
+    }
+
     /// Schedules the tooltip to appear after `delay` seconds.
     /// If `delay` is 0, the tooltip is shown immediately.
     func scheduleShow(delay: TimeInterval) {
