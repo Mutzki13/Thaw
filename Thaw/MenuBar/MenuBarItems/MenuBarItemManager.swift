@@ -912,8 +912,8 @@ extension MenuBarItemManager {
         // Fallback: refresh on-screen items and pick the matching tag (prefer same windowID, then non-clone).
         let refreshed = await MenuBarItem.getMenuBarItems(option: .onScreen)
         if let refreshedItem = refreshed.first(where: { $0.windowID == item.windowID && $0.tag == item.tag }) ??
-            refreshed.first(where: { $0.tag == item.tag && !$0.isSystemClone }) ??
-            refreshed.first(where: { $0.tag == item.tag })
+            refreshed.first(where: { $0.tag.matchesIgnoringWindowID(item.tag) && !$0.isSystemClone }) ??
+            refreshed.first(where: { $0.tag.matchesIgnoringWindowID(item.tag) })
         {
             return refreshedItem.bounds
         }
@@ -2068,8 +2068,13 @@ extension MenuBarItemManager {
         await waitForItemPositionToSettle(item: item)
 
         // Re-fetch the item from the live window list specifically for this display.
+        // Prefer an exact windowID match, then fall back to namespace+title with PID matching.
         let refreshedItems = await MenuBarItem.getMenuBarItems(on: resolvedDisplayID, option: .onScreen)
-        let clickItem = refreshedItems.first(where: { $0.tag == item.tag }) ?? item
+        let clickItem = refreshedItems.first(where: { $0.windowID == item.windowID }) ??
+            refreshedItems.first(where: {
+                $0.tag.matchesIgnoringWindowID(item.tag) &&
+                    ($0.sourcePID ?? $0.ownerPID) == (item.sourcePID ?? item.ownerPID)
+            }) ?? item
 
         // Give the owning app a little extra time to finish processing the
         // move internally. Some apps (e.g. OneDrive) need more than just a

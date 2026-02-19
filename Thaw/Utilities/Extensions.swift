@@ -363,12 +363,6 @@ extension Collection where Element == MenuBarItem {
     func firstIndex(matching tag: MenuBarItemTag) -> Index? {
         firstIndex { $0.tag == tag }
     }
-
-    /// Returns the first index where an element matches the specified tag,
-    /// ignoring their window identifiers.
-    func firstIndex(matchingIgnoringWindowID tag: MenuBarItemTag) -> Index? {
-        firstIndex { $0.tag.matchesIgnoringWindowID(tag) }
-    }
 }
 
 // MARK: - Comparable
@@ -753,11 +747,5 @@ extension Sequence where Element == MenuBarItem {
     /// Returns the first menu bar item that matches the specified tag.
     func first(matching tag: MenuBarItemTag) -> MenuBarItem? {
         first { $0.tag == tag }
-    }
-
-    /// Returns the first menu bar item that matches the specified tag,
-    /// ignoring their window identifiers.
-    func first(matchingIgnoringWindowID tag: MenuBarItemTag) -> MenuBarItem? {
-        first { $0.tag.matchesIgnoringWindowID(tag) }
     }
 }
