@@ -82,6 +82,8 @@ final class MenuBarItemImageCache: ObservableObject {
     /// Storage for internal observers.
     private var cancellables = Set<AnyCancellable>()
 
+    private var memoryPressureSource: DispatchSourceMemoryPressure?
+
     /// The currently running cache update task, if any.
     private var currentUpdateTask: Task<Void, Never>?
 
@@ -214,18 +216,16 @@ final class MenuBarItemImageCache: ObservableObject {
 
         if let appState {
             // Monitor system memory pressure
-            DispatchQueue.main.async {
-                let source = DispatchSource.makeMemoryPressureSource(
-                    eventMask: [.warning, .critical],
-                    queue: .main
-                )
-                source.setEventHandler { [weak self] in
-                    self?.handleMemoryPressure()
-                }
-                source.resume()
-                // Store source in a way that keeps it alive but allows cancellation?
-                // For now, just let it run as long as the app is alive since it's global
+            memoryPressureSource?.cancel()
+            let source = DispatchSource.makeMemoryPressureSource(
+                eventMask: [.warning, .critical],
+                queue: .main
+            )
+            source.setEventHandler { [weak self] in
+                self?.handleMemoryPressure()
             }
+            source.resume()
+            memoryPressureSource = source
 
             let spaceChangePublisher: AnyPublisher<Void, Never> = NSWorkspace.shared.notificationCenter.publisher(
                 for: NSWorkspace.activeSpaceDidChangeNotification
