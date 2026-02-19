@@ -158,11 +158,14 @@ struct MenuBarItem: CustomStringConvertible {
 
     /// A unique identifier for storing custom names.
     ///
-    /// Uses `namespace:title` only — windowID is intentionally excluded
-    /// because it is transient and changes between app restarts, which
-    /// would cause persisted custom names to be lost.
+    /// Uses `namespace:title:index` only — windowID is intentionally
+    /// excluded because it is transient and changes between app restarts,
+    /// which would cause persisted custom names to be lost.
     var uniqueIdentifier: String {
-        "\(tag.namespace):\(tag.title)"
+        if tag.instanceIndex > 0 {
+            return "\(tag.namespace):\(tag.title):\(tag.instanceIndex)"
+        }
+        return "\(tag.namespace):\(tag.title)"
     }
 
     /// Custom name for this item (persisted).
@@ -192,8 +195,8 @@ struct MenuBarItem: CustomStringConvertible {
     /// This initializer does not perform validity checks on its parameters.
     /// Only call it if you are certain the window is a valid menu bar item.
     @MainActor
-    private init(uncheckedItemWindow itemWindow: WindowInfo) {
-        self.tag = MenuBarItemTag(uncheckedItemWindow: itemWindow)
+    private init(uncheckedItemWindow itemWindow: WindowInfo, instanceIndex: Int = 0) {
+        self.tag = MenuBarItemTag(uncheckedItemWindow: itemWindow, instanceIndex: instanceIndex)
         self.windowID = itemWindow.windowID
         self.ownerPID = itemWindow.ownerPID
         self.sourcePID = itemWindow.ownerPID
@@ -209,8 +212,8 @@ struct MenuBarItem: CustomStringConvertible {
     /// and the source pid belongs to the application that created it.
     @available(macOS 26.0, *)
     @MainActor
-    private init(uncheckedItemWindow itemWindow: WindowInfo, sourcePID: pid_t?) {
-        self.tag = MenuBarItemTag(uncheckedItemWindow: itemWindow, sourcePID: sourcePID)
+    private init(uncheckedItemWindow itemWindow: WindowInfo, sourcePID: pid_t?, instanceIndex: Int = 0) {
+        self.tag = MenuBarItemTag(uncheckedItemWindow: itemWindow, sourcePID: sourcePID, instanceIndex: instanceIndex)
         self.windowID = itemWindow.windowID
         self.ownerPID = itemWindow.ownerPID
         self.sourcePID = sourcePID
@@ -288,7 +291,7 @@ extension MenuBarItem {
         let windows = getMenuBarItemWindows(on: display, option: option)
         diagLog.debug("getMenuBarItemsExperimental: processing \(windows.count) windows for source PID resolution")
 
-        return await withTaskGroup(of: (Int, MenuBarItem).self) { group in
+        var items = await withTaskGroup(of: (Int, MenuBarItem).self) { group in
             for (index, window) in windows.enumerated() {
                 group.addTask {
                     // Check for our own control items by title and owner.
@@ -312,19 +315,88 @@ extension MenuBarItem {
                 indexedItems.append(result)
             }
 
-            let items = indexedItems.sorted(by: { $0.0 < $1.0 }).map { $0.1 }
-            let nilPIDCount = items.filter { $0.sourcePID == nil }.count
-            diagLog.debug("getMenuBarItemsExperimental: created \(items.count) items (\(nilPIDCount) with nil sourcePID)")
-            return items
+            return indexedItems.sorted(by: { $0.0 < $1.0 }).map { $0.1 }
         }
+
+        // Post-resolution pass: fix up items with nil sourcePID.
+        //
+        // On macOS 26, the SourcePIDCache resolves PIDs by spatially
+        // matching CG window bounds to AX extras menu bar children.
+        // When an app registers multiple NSStatusItems (e.g. OneDrive
+        // for personal and work accounts), the concurrent resolution
+        // may fail for one of the windows due to timing skew between
+        // CG and AX coordinate updates.
+        //
+        // If an unresolved item shares the same window title with a
+        // resolved item, it almost certainly belongs to the same app.
+        // Re-create the item with the sibling's sourcePID so it gets
+        // the correct namespace, display name, and app icon.
+        let unresolvedIndices = items.indices.filter { items[$0].sourcePID == nil && !items[$0].isControlItem }
+        if !unresolvedIndices.isEmpty {
+            // Build a lookup from window title to resolved sourcePID.
+            // Use nil as a sentinel for conflicting PIDs (different
+            // apps sharing the same title, e.g. multiple apps using
+            // "Item-0").
+            var titleToPID = [String: pid_t?]()
+            for item in items where item.sourcePID != nil {
+                if let title = item.title, let pid = item.sourcePID {
+                    if let existing = titleToPID[title] {
+                        // Mark as ambiguous if different PIDs share this title.
+                        if existing != pid {
+                            titleToPID[title] = nil as pid_t?
+                        }
+                    } else {
+                        titleToPID[title] = pid
+                    }
+                }
+            }
+
+            for idx in unresolvedIndices {
+                let item = items[idx]
+                if let title = item.title, let siblingPID = titleToPID[title] ?? nil {
+                    diagLog.debug("getMenuBarItemsExperimental: propagating sourcePID \(siblingPID) to unresolved windowID \(item.windowID) (title=\(title))")
+                    items[idx] = MenuBarItem(uncheckedItemWindow: windows[idx], sourcePID: siblingPID)
+                }
+            }
+        }
+
+        // Final pass: assign instance indices to allow individual identification
+        // of items with the same (namespace, title).
+        var counts = [String: Int]()
+        for i in 0 ..< items.count {
+            let key = "\(items[i].tag.namespace):\(items[i].tag.title)"
+            let index = counts[key, default: 0]
+            counts[key] = index + 1
+            if index > 0 {
+                // Re-create the item with the correct instance index.
+                if let sourcePID = items[i].sourcePID {
+                    items[i] = MenuBarItem(uncheckedItemWindow: windows[i], sourcePID: sourcePID, instanceIndex: index)
+                } else {
+                    items[i] = MenuBarItem(uncheckedItemWindow: windows[i], instanceIndex: index)
+                }
+            }
+        }
+
+        let nilPIDCount = items.filter { $0.sourcePID == nil }.count
+        diagLog.debug("getMenuBarItemsExperimental: created \(items.count) items (\(nilPIDCount) with nil sourcePID)")
+        return items
     }
 
     /// Creates and returns a list of menu bar items, defaulting to the
     /// legacy source pid behavior, prior to macOS 26.
     @MainActor
     private static func getMenuBarItemsLegacyMethod(on display: CGDirectDisplayID?, option: ListOption) -> [MenuBarItem] {
-        getMenuBarItemWindows(on: display, option: option).map { window in
-            MenuBarItem(uncheckedItemWindow: window)
+        let windows = getMenuBarItemWindows(on: display, option: option)
+        var counts = [String: Int]()
+        return windows.map { window in
+            let item = MenuBarItem(uncheckedItemWindow: window)
+            let key = "\(item.tag.namespace):\(item.tag.title)"
+            let index = counts[key, default: 0]
+            counts[key] = index + 1
+            if index > 0 {
+                return MenuBarItem(uncheckedItemWindow: window, instanceIndex: index)
+            }
+            return item
         }
     }
 
@@ -393,10 +465,11 @@ private extension MenuBarItemTag {
     /// This initializer does not perform validity checks on its parameters.
     /// Only call it if you are certain the window is a valid menu bar item.
     @MainActor
-    init(uncheckedItemWindow itemWindow: WindowInfo) {
+    init(uncheckedItemWindow itemWindow: WindowInfo, instanceIndex: Int = 0) {
         self.namespace = Namespace(uncheckedItemWindow: itemWindow)
         self.title = itemWindow.title ?? ""
         self.windowID = itemWindow.windowID
+        self.instanceIndex = instanceIndex
     }
 
     /// Creates a tag without checks.
@@ -406,10 +479,11 @@ private extension MenuBarItemTag {
     /// and the source pid belongs to the application that created it.
     @available(macOS 26.0, *)
     @MainActor
-    init(uncheckedItemWindow itemWindow: WindowInfo, sourcePID: pid_t?) {
+    init(uncheckedItemWindow itemWindow: WindowInfo, sourcePID: pid_t?, instanceIndex: Int = 0) {
         self.namespace = Namespace(uncheckedItemWindow: itemWindow, sourcePID: sourcePID)
         self.title = itemWindow.title ?? ""
         self.windowID = itemWindow.windowID
+        self.instanceIndex = instanceIndex
     }
 }
 

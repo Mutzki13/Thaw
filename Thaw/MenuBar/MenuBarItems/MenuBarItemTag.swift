@@ -22,6 +22,9 @@ struct MenuBarItemTag: Hashable, CustomStringConvertible {
     /// The window identifier of the item identified by this tag.
     let windowID: CGWindowID?
 
+    /// The index of the item within its (namespace, title) group.
+    let instanceIndex: Int
+
     /// A Boolean value that indicates whether the item identified
     /// by this tag is a system item.
     var isSystemItem: Bool {
@@ -72,6 +75,9 @@ struct MenuBarItemTag: Hashable, CustomStringConvertible {
         if !title.isEmpty {
             result.append(":\(title)")
         }
+        if instanceIndex > 0 {
+            result.append(":\(instanceIndex)")
+        }
         if let windowID, !isSystemItem {
             result.append(" (windowID: \(windowID))")
         }
@@ -81,13 +87,14 @@ struct MenuBarItemTag: Hashable, CustomStringConvertible {
     func hash(into hasher: inout Hasher) {
         hasher.combine(namespace)
         hasher.combine(title)
+        hasher.combine(instanceIndex)
         if !isSystemItem {
             hasher.combine(windowID)
         }
     }
 
     static func == (lhs: MenuBarItemTag, rhs: MenuBarItemTag) -> Bool {
-        if lhs.namespace != rhs.namespace || lhs.title != rhs.title {
+        if lhs.namespace != rhs.namespace || lhs.title != rhs.title || lhs.instanceIndex != rhs.instanceIndex {
             return false
         }
         if lhs.isSystemItem {
@@ -97,21 +104,23 @@ struct MenuBarItemTag: Hashable, CustomStringConvertible {
     }
 
     /// Returns a Boolean value that indicates whether the given tag
-    /// matches this tag, ignoring their window identifiers.
+    /// matches this tag, ignoring their window identifiers and instance indices.
     func matchesIgnoringWindowID(_ other: MenuBarItemTag) -> Bool {
         namespace == other.namespace && title == other.title
     }
 
-    /// Creates a tag with the given namespace, title, and window identifier.
-    init(namespace: Namespace, title: String, windowID: CGWindowID? = nil) {
+    /// Creates a tag with the given namespace, title, window identifier,
+    /// and instance index.
+    init(namespace: Namespace, title: String, windowID: CGWindowID? = nil, instanceIndex: Int = 0) {
         self.namespace = namespace
         self.title = title
         self.windowID = windowID
+        self.instanceIndex = instanceIndex
     }
 
     /// Creates a tag for the control item with the given identifier.
     private init(controlItem identifier: ControlItem.Identifier) {
-        self.init(namespace: .thaw, title: identifier.rawValue)
+        self.init(namespace: .thaw, title: identifier.rawValue, instanceIndex: 0)
     }
 }
 
