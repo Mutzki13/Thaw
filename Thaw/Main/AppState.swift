@@ -223,11 +223,15 @@ final class AppState: ObservableObject {
         NSWorkspace.shared.notificationCenter
             .publisher(for: NSWorkspace.activeSpaceDidChangeNotification)
             .discardMerge(NSWorkspace.shared.publisher(for: \.frontmostApplication))
-            .discardMerge(EventMonitor.publish(events: .leftMouseDown, scope: .universal).flatMap { _ in
-                let initial = Just(())
-                let delayed = initial.delay(for: 0.1, scheduler: DispatchQueue.main)
-                return Publishers.Merge(initial, delayed)
-            })
+            .discardMerge(
+                EventMonitor.publish(events: .leftMouseDown, scope: .universal)
+                    .throttle(for: .seconds(0.15), scheduler: DispatchQueue.main, latest: true)
+                    .flatMap { _ in
+                        let initial = Just(())
+                        let delayed = initial.delay(for: 0.1, scheduler: DispatchQueue.main)
+                        return Publishers.Merge(initial, delayed)
+                    }
+            )
             .replace { Bridging.getActiveSpaceID() }
             .removeDuplicates()
             .sink { [weak self] spaceID in
@@ -320,8 +324,8 @@ final class AppState: ObservableObject {
             .store(in: &c)
 
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
+            .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
             .map { _ in NSScreen.screens.count }
-            .receive(on: DispatchQueue.main)
             .sink { [weak self] count in
                 guard let self else { return }
                 defer { self.lastKnownScreenCount = count }
