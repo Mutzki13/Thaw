@@ -544,7 +544,8 @@ final class MenuBarItemImageCache: ObservableObject {
                 height: bounds.height * scale
             )
             guard let image = compositeImage.cropping(to: cropRect),
-                  !image.isTransparent() else {
+                  !image.isTransparent()
+            else {
                 continue
             }
             newImages[item.tag] = CapturedImage(cgImage: image, scale: scale)
