@@ -747,12 +747,14 @@ extension HIDEventManager {
         // Find the specific window under the cursor using the cached bounds lookup.
         // This avoids per-event IPC calls to the Window Server.
         let entries = windowBoundsLock.withLock { $0 }
-        let hoveredID = entries.first(where: { $0.bounds.contains(mouseLocation) })?.windowID
+        let hoveredEntry = entries.first(where: { $0.bounds.contains(mouseLocation) })
 
-        guard let hoveredID else {
+        guard let hoveredEntry else {
             dismissMenuBarTooltip()
             return
         }
+
+        let hoveredID = hoveredEntry.windowID
 
         // If we're still over the same item, nothing to do.
         if hoveredID == tooltipHoveredWindowID {
@@ -763,17 +765,13 @@ extension HIDEventManager {
         dismissMenuBarTooltip()
         tooltipHoveredWindowID = hoveredID
 
+        let cachedBounds = hoveredEntry.bounds
         let delay = appState.settings.advanced.tooltipDelay
         tooltipTask = Task {
             if delay > 0 {
                 try await Task.sleep(for: .seconds(delay))
             }
             try Task.checkCancellation()
-
-            // Fetch current bounds for accurate positioning.
-            guard let currentBounds = Bridging.getWindowBounds(for: hoveredID) else {
-                return
-            }
 
             // Look up the item from the cache by window ID.
             let allItems = appState.itemManager.itemCache.managedItems
@@ -793,8 +791,8 @@ extension HIDEventManager {
             // convert to AppKit (bottom-left origin) for the panel.
             guard let primaryScreen = NSScreen.screens.first else { return }
             let appKitOrigin = CGPoint(
-                x: currentBounds.midX,
-                y: primaryScreen.frame.height - currentBounds.maxY
+                x: cachedBounds.midX,
+                y: primaryScreen.frame.height - cachedBounds.maxY
             )
 
             CustomTooltipPanel.shared.show(
