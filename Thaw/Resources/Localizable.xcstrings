@@ -5652,7 +5652,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die %@-Leiste immer an der Position des Mauszeigers anzeigen, wenn ein Hotkey benutzt wird."
+            "value" : "Die %@-Leiste immer an der Position des Mauszeigers anzeigen, wenn ein Tastaturkürzel benutzt wird."
           }
         },
         "es" : {
@@ -18756,7 +18756,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hotkey ist von macOS reserviert."
+            "value" : "Tastaturkürzel ist von macOS reserviert."
           }
         },
         "es" : {
@@ -27933,7 +27933,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hotkey aufnehmen"
+            "value" : "Tastaturkürzel aufnehmen"
           }
         },
         "es" : {
@@ -32818,7 +32818,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bei Hotkey-Nutzung beim Mauszeiger anzeigen"
+            "value" : "Bei Tastaturkürzel-Nutzung beim Mauszeiger anzeigen"
           }
         },
         "es" : {
@@ -37703,7 +37703,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hotkey eingeben"
+            "value" : "Tastaturkürzel eingeben"
           }
         },
         "es" : {
